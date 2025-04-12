@@ -1,0 +1,703 @@
+/* Core variables - consolidated */
+:root {
+  /* Color palette */
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --secondary: #f43f5e;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  
+  /* Neutral palette - kept as-is for flexibility */
+  --neutral-50: #fafafa;
+  --neutral-100: #f5f5f5;
+  --neutral-200: #e5e5e5;
+  --neutral-300: #d4d4d4;
+  --neutral-400: #a3a3a3;
+  --neutral-500: #737373;
+  --neutral-600: #525252;
+  --neutral-700: #404040;
+  --neutral-800: #262626;
+  --neutral-900: #171717;
+  
+  /* UI variables - grouped by type */
+  --border-radius-sm: 6px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-full: 9999px;
+  
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03), 0 1px 6px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12), 0 30px 60px rgba(0, 0, 0, 0.08);
+  
+  --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-standard: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  
+  /* Common composite values */
+  --focus-ring: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  --primary-transparent: rgba(99, 102, 241, 0.1);
+  --primary-transparent-hover: rgba(99, 102, 241, 0.15);
+}
+
+/* Dark mode - using CSS variables instead of redefining all colors */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-scheme: dark;
+    --neutral-50: #171717;
+    --neutral-100: #262626;
+    --neutral-200: #404040;
+    --neutral-300: #525252;
+    --neutral-400: #737373;
+    --neutral-500: #a3a3a3;
+    --neutral-600: #d4d4d4;
+    --neutral-700: #e5e5e5;
+    --neutral-800: #f5f5f5;
+    --neutral-900: #fafafa;
+  }
+}
+
+body.dark-mode {
+  --neutral-50: #171717;
+  --neutral-100: #262626;
+  --neutral-200: #404040;
+  --neutral-300: #525252;
+  --neutral-400: #737373;
+  --neutral-500: #a3a3a3;
+  --neutral-600: #d4d4d4;
+  --neutral-700: #e5e5e5;
+  --neutral-800: #f5f5f5;
+  --neutral-900: #fafafa;
+}
+
+/* Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--neutral-800);
+  background-color: var(--neutral-50);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  min-width: 350px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Return to original container width */
+.container {
+  width: 600px;  /* Fixed width as in original CSS */
+  max-width: 100%;  /* But don't overflow viewport */
+  padding: 20px;
+  flex: 1;
+  margin: 0 auto;
+}
+
+header {
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+/* Typography - simplified heading styles */
+h1, h2 {
+  color: var(--neutral-900);
+  font-weight: 600;
+}
+
+h1 {
+  font-size: 20px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+h1:before {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 18px;
+  background-color: var(--primary);
+  border-radius: var(--border-radius-sm);
+}
+
+h2 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 16px 0 8px;
+  color: var(--neutral-700);
+}
+
+/* Common animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes copiedFeedback {
+  0% { opacity: 0; transform: translateY(10px); }
+  15% { opacity: 1; transform: translateY(0); }
+  85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+/* Reusable component styles */
+.card {
+  padding: 12px 14px;
+  border-radius: var(--border-radius-md);
+  background-color: var(--neutral-50);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-standard), transform var(--transition-standard);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* Button base styles */
+/* General button styles to match .toggle-button */
+button, .action-button {
+  padding: 8px 14px;
+  background-color: var(--primary-transparent); /* Matching toggle button background */
+  color: var(--primary); /* Matching toggle button color */
+  border: none;
+  border-radius: var(--border-radius-full); /* Same border-radius as toggle-button */
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500; /* Same font-weight as toggle-button */
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+
+/* Special CSS for make active button */
+.active-button {
+  background-color: #4CAF50 !important; /* Green background */
+  color: white !important;
+  cursor: default !important;
+}
+
+/* Ensure the disabled button still looks good */
+button:disabled.active-button {
+  opacity: 1;
+  transition: all 1s ease;
+  
+}
+
+button:hover, .action-button:hover {
+  background-color: var(--primary-transparent-hover); /* Same hover background as toggle-button */
+  transform: translateY(-1px);
+}
+
+button:active, .action-button:active {
+  transform: translateY(0px);
+}
+
+/* Button variants */
+button.secondary {
+  background-color: var(--primary-transparent);
+  color: var(--primary);
+}
+
+button.secondary:hover {
+  background-color: var(--primary-transparent-hover);
+}
+
+
+.toggle-button {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--border-radius-full);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 500;
+  background-color: var(--primary-transparent);
+  color: var(--primary);
+  min-width: 28px;
+ 
+}
+
+.toggle-button:hover {
+  background-color: var(--primary-transparent-hover);
+}
+
+/* Form elements */
+.input-base, textarea, #search-input, #search-scope {
+  padding: 10px 14px;
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--border-radius-md);
+  font-size: 14px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  background-color: var(--neutral-50);
+  color: var(--neutral-800);
+  font-family: inherit;
+}
+
+.input-base:focus, textarea:focus, #search-input:focus, #search-scope:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+textarea {
+  width: 100%;
+  height: 100px;
+  resize: none;
+  margin-bottom: 12px;
+}
+
+/* Button rows and actions */
+.button-row, .prompt-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: flex-start;
+}
+
+.prompt-actions button {
+  margin: 0;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* Lists and containers */
+.prompt-list {
+  max-height: 400px;
+  overflow-y: auto;
+  border-radius: var(--border-radius-lg);
+  background-color: var(--neutral-100);
+  padding: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--neutral-300) transparent;
+}
+
+.prompt-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.prompt-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.prompt-list::-webkit-scrollbar-thumb {
+  background-color: var(--neutral-300);
+  border-radius: var(--border-radius-full);
+}
+
+/* Component styles */
+.prompt-item, .collection-item {
+  margin: 8px 4px;
+  width: calc(100% - 8px);
+}
+
+.prompt-text {
+  margin-bottom: 12px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--border-radius-sm);
+  transition: background-color var(--transition-fast);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prompt-text:hover {
+  background-color: transparent;
+}
+
+.prompt-text[data-expanded="true"] {
+  white-space: normal;
+  background-color: transparent;
+}
+
+.prompt-text[data-expanded="false"] {
+  white-space: nowrap;
+}
+
+/* Tab system */
+.tabs {
+  display: flex;
+  background-color: var(--neutral-100);
+  border-radius: var(--border-radius-full);
+  padding: 4px;
+  margin: 16px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--neutral-600);
+  position: relative;
+  z-index: 2;
+  transition: color var(--transition-fast);
+  text-align: center;
+  border-radius: var(--border-radius-full);
+}
+
+.tab-button.active {
+  color: white;  /* Light text on primary color background */
+  font-weight: 500;
+  background-color: var(--primary);  /* Primary color in light mode */
+}
+
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+  animation: fadeSlideIn 0.3s ease-out;
+}
+
+/* Search */
+.search-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+#search-input {
+  flex-grow: 1;
+}
+
+#search-scope {
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23525252' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  appearance: none;
+}
+
+/* Collection specific styles */
+.collection-name {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--neutral-900);
+}
+
+.collection-meta {
+  color: var(--neutral-500);
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+/* Empty state */
+.empty-message {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--neutral-500);
+  font-size: 14px;
+  background-color: var(--neutral-100);
+  border-radius: var(--border-radius-md);
+  margin: 8px 4px;
+}
+
+/* Section headers */
+.section-header, .collections-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 0 12px;
+}
+
+.collections-header .button-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.section-header h2 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Source indicator */
+.prompt-source {
+  font-size: 12px;
+  color: var(--neutral-500);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prompt-source:before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background-color: var(--primary);
+  border-radius: 50%;
+}
+
+/* Theme toggle */
+
+.theme-toggle-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--neutral-200);
+  color: var(--neutral-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast);
+}
+
+.theme-toggle-button:hover {
+  background-color: var(--neutral-300);
+}
+
+/* Footer */
+.app-footer {
+  background-color: var(--neutral-100);
+  padding: 12px 20px;
+  border-top: 1px solid var(--neutral-200);
+  margin-top: auto;
+  width: 100%;
+}
+
+.footer-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--neutral-400);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.footer-links {
+  display: flex;
+  gap: 16px;
+}
+
+.footer-links a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.footer-links a:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+/* Copied feedback */
+.copy-feedback {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--success);
+  color: white;
+  padding: 8px 16px;
+  border-radius: var(--border-radius-md);
+  font-size: 12px;
+  animation: copiedFeedback 1.5s ease-in-out forwards;
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* Input area */
+.input-area {
+  margin-bottom: 20px;
+  transition: all var(--transition-standard);
+}
+
+/* Additional utility classes */
+.flex {
+  display: flex;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gap-sm {
+  gap: 6px;
+}
+
+.gap-md {
+  gap: 10px;
+}
+
+.text-sm {
+  font-size: 12px;
+}
+
+.text-muted {
+  color: var(--neutral-500);
+}
+
+.w-full {
+  width: 100%;
+}
+
+/* Prompt input container */
+#prompt-input-container {
+  display: none;
+  animation: slideDown 0.3s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .container {
+    padding: 16px;
+  }
+  
+  .button-row {
+    flex-direction: row;
+    gap: 8px;
+  }
+  
+  button, .action-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+body.dark-mode {
+  --neutral-50: #171717;
+  --neutral-100: #262626;
+  --neutral-200: #404040;
+  --neutral-300: #525252;
+  --neutral-400: #737373;
+  --neutral-500: #a3a3a3;
+  --neutral-600: #d4d4d4;
+  --neutral-700: #e5e5e5;
+  --neutral-800: #f5f5f5;
+  --neutral-900: #fafafa;
+}
+
+body.dark-mode {
+  color: var(--neutral-100);
+  background-color: var(--neutral-900);
+}
+
+body.dark-mode .card,
+body.dark-mode .prompt-list,
+body.dark-mode .app-footer {
+  background-color: var(--neutral-800);
+}
+
+body.dark-mode .input-base,
+body.dark-mode textarea,
+body.dark-mode #search-input,
+body.dark-mode #search-scope {
+  background-color: var(--neutral-800);
+  color: var(--neutral-100);
+  border-color: var(--neutral-500);
+}
+
+body.dark-mode .collection-name,
+body.dark-mode h1,
+body.dark-mode h2 {
+  color: var(--neutral-100);
+}
+
+/* Empty Message */
+body.dark-mode .empty-message {
+  color: var(--neutral-300); /* Lighter text color for dark mode */
+  background-color: var(--neutral-800); /* Dark background */
+  border-color: var(--neutral-600); /* Dark border for contrast */
+}
+
+/* Tabs */
+body.dark-mode .tabs {
+  background-color: var(--neutral-700); /* Dark background for tabs */
+  border-color: var(--neutral-600); /* Dark border */
+}
+
+body.dark-mode .tab-button {
+  color: var(--neutral-300); /* Lighter text for tabs */
+}
+
+body.dark-mode .tab-button.active {
+  color: var(--neutral-50);  /* Dark mode text color */
+  background-color: var(--primary);  /* Primary color in dark mode */
+  font-weight: 500;
+}
+
+/* Tab hover */
+body.dark-mode .tab-button:hover {
+  background-color: var(--neutral-600); /* Hover state for tabs */
+  color: var(--neutral-50); /* Hover state text color */
+}
+
+
+/* css when add collection name */ 
+
+.collection-dialog {
+  position: fixed;
+  top: 10%;
+  left: 10%;
+  width: 80%;
+  max-height: 80%;
+  background: white;
+  border: 1px solid #ccc;
+  box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+  z-index: 1000;
+  overflow: auto;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.dialog-content {
+  padding: 10px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+#close-dialog {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}

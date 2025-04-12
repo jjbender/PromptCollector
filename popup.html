@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PromptKeeper</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="tabs">
+        <button id="buffer-tab" class="tab-button active">Active Prompts</button>
+        <button id="collections-tab" class="tab-button">Keeper</button>
+      </div>
+    </header>
+
+    <!-- Buffer Tab Content -->
+    <div id="buffer-content" class="tab-content active">
+      <div class="section-header">
+        <h2>Buffer<span id="buffer-count">(0/10)</span></h2>
+        <button id="toggle-input" class="toggle-button" aria-label="Toggle input area">+</button>
+      </div>
+
+      <div id="prompt-input-container" class="input-area">
+        <textarea id="prompt-input" placeholder="Enter or paste your prompt here..."></textarea>
+        <div class="button-row">
+          <button id="save-to-buffer" class="action-button">Save to Buffer</button>
+          <button id="paste-from-clipboard" class="action-button secondary">Paste from Clipboard</button>
+        </div>
+      </div>
+
+      <div id="buffer-list" class="prompt-list">
+        <!-- Buffer items will be populated here -->
+        <div class="empty-message">No prompts saved yet</div>
+      </div>
+    </div>
+
+    <!-- Collections Tab Content -->
+    <div id="collections-content" class="tab-content">
+      <div class="search-header">
+        <input type="text" id="search-input" placeholder="Search prompts..." />
+        <select id="search-scope">
+          <option value="all">All Collections</option>
+          <option value="buffer">Buffer Only</option>
+        </select>
+      </div>
+
+      <div id="search-results" style="display: none;" class="prompt-list">
+        <!-- Search results will be populated here -->
+        <!--<div class="empty-message">Enter search terms above</div>-->
+      </div>
+    
+      <div class="collections-header">
+        <h2>My Collections</h2>
+        <div class="button-row">
+          <button id="create-collection" class="action-button">+</button>
+          <button id="import-collection" class="action-button secondary">Import</button>
+        </div>
+      </div>
+
+      <div id="collections-list">
+        <!-- Collections will be populated here -->
+        <div class="empty-message">No collections created yet</div>
+      </div>
+    </div>
+  </div>
+    <!-- Search Tab Content -->
+    <div id="search-content" class="tab-content">
+      <div class="search-header">
+        <input type="text" id="search-input" placeholder="Search prompts..." />
+        <select id="search-scope">
+          <option value="all">All Collections</option>
+          <option value="buffer">Buffer Only</option>
+        </select>
+      </div>
+
+      <div id="search-results" class="prompt-list">
+        <!-- Search results will be populated here -->
+        <div class="empty-message">Enter search terms above</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="footer-content">
+      <p>PromptKeeper &copy; 2025</p>
+      
+      <div class="footer-links">
+        <a href="#" id="help-link">Visit Help</a>
+       
+        <!-- <a href="#" id="privacy-link">Privacy</a> -->
+      </div>
+      <div id="theme-toggle-container" class="theme-toggle-container"></div>
+    </div>
+  </footer>
+  <script src="theme-toggle.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
