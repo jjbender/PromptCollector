@@ -1,30 +1,25 @@
-PromptKeepr - Google Chrome Extension
+PromptKeeper: Save, Organize, and Export Your AI Prompts — Instantly in Chrome
 
-Chrome extension that allows users to quickly work with the AI prompts:
+PromptKeeper is a lightweight Chrome extension that helps you save, manage, and organize your favorite AI prompts, so you never lose a great idea again.
 
-1) Save prompts and other text snippets to an extension buffer (limited to 20 items on FILO)
+1) Save prompts and text snippets in a 10-item rotating clipboard (First-In, Last-Out style)
 
-2) Edit and remove the prompts
+2) Organize prompts into saved collections
 
-3) Create and upload custom collections 
+3) Instantly search across your collections 
 
-4) Search locally between collections 
+4) Import/export your data as JSON or CSV 
 
-5) Import and export collections as JSON/CSV
+5) Works fully offline — your data stays in your browser
+
+No cloud. No sign-in. Your data stays private, stored right in your browser using chrome.storage.local.
 
 
-All data is stored locally with the help of chrome.storage.local
-
-
-Tools used: 
-
-- HTML, CSS, JavaScript (Vanilla)
-
-- chrome.storage.local API (for local-only storage)
-
-- navigator.clipboard API (copy/paste)
-
+### Stack
+- Vanilla HTML, CSS, JavaScript
 - Chrome Extensions API (Manifest V3)
+- `chrome.storage.local` for local storage
+- `navigator.clipboard` for fast copy/paste
 
 
 Installation: 
