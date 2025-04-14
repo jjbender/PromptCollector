@@ -329,7 +329,7 @@ function copyToClipboard(text, button) {
       button.classList.add('copied');
       
       setTimeout(() => {
-        button.textContent = 'Copy';
+        button.textContent = 'Copy to clipboard';
         button.classList.remove('copied');
       }, 2000);
     }
@@ -683,6 +683,88 @@ function deleteCollectionPrompt(collectionIndex, promptIndex) {
   });
 }
 
+// Import collection from JSON file
+function importCollection() {
+  // Create a hidden file input element
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.json';
+  fileInput.style.display = 'none';
+  document.body.appendChild(fileInput);
+  
+  // Trigger the file selection dialog
+  fileInput.click();
+  
+  // Handle file selection
+  fileInput.addEventListener('change', function() {
+    if (fileInput.files.length === 0) {
+      document.body.removeChild(fileInput);
+      return;
+    }
+    
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    
+    reader.onload = function(event) {
+      try {
+        const collection = JSON.parse(event.target.result);
+        
+        // Validate the collection structure
+        if (!collection.name || !Array.isArray(collection.prompts)) {
+          alert('Invalid collection format. Collection must have a name and prompts array.');
+          document.body.removeChild(fileInput);
+          return;
+        }
+        
+        // Add timestamps if they don't exist
+        if (!collection.created) {
+          collection.created = Date.now();
+        }
+        if (!collection.updated) {
+          collection.updated = Date.now();
+        }
+        
+        // Save the imported collection
+        chrome.storage.local.get('promptCollections', function(data) {
+          let collections = data.promptCollections || [];
+          
+          // Check if a collection with the same name already exists
+          const existingCollectionIndex = collections.findIndex(c => c.name === collection.name);
+          
+          if (existingCollectionIndex !== -1) {
+            const overwrite = confirm(`A collection named "${collection.name}" already exists. Overwrite it?`);
+            
+            if (overwrite) {
+              collections[existingCollectionIndex] = collection;
+            } else {
+              // Ask for a new name
+              const newName = prompt('Enter a new name for the imported collection:');
+              if (!newName) {
+                document.body.removeChild(fileInput);
+                return;
+              }
+              collection.name = newName;
+              collections.push(collection);
+            }
+          } else {
+            collections.push(collection);
+          }
+          
+          chrome.storage.local.set({ promptCollections: collections }, function() {
+            alert(`Collection "${collection.name}" imported successfully with ${collection.prompts.length} prompts.`);
+            loadCollections();
+            document.body.removeChild(fileInput);
+          });
+        });
+      } catch (error) {
+        alert('Error importing collection: ' + error.message);
+        document.body.removeChild(fileInput);
+      }
+    };
+    
+    reader.readAsText(file);
+  });
+}
 
 // Export collection to JSON
 function exportCollection(collection) {
