@@ -10,12 +10,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const toggleButton = document.getElementById('toggle-input');
   toggleButton.textContent = '+';
 });
+  // Let active collections be not in edit mode in the start
+  let activeCollectionEditMode = false;
 
-document.getElementById('help-link').addEventListener('click', function(event) {
-  event.preventDefault(); // Prevent the default anchor behavior
-  const helpUrl = "https://balsam-copper-ded.notion.site/CopyPastePrompt-1d2537cd5c798057b425f886d2e59271";
-  chrome.tabs.create({ url: helpUrl });
-});
 
 // Tab functionality
 function initTabs() {
@@ -37,6 +34,7 @@ function initTabs() {
 }
 
 // Load buffer items from storage
+// Update the loadBufferItems function to add edit/delete buttons for collection prompts when in edit mode
 function loadBufferItems() {
   chrome.storage.local.get(['promptBuffer', 'promptCollections', 'activeCollectionIndex', 'collectionToggleState'], function(data) {
     const bufferList = document.getElementById('buffer-list');
@@ -75,28 +73,104 @@ function loadBufferItems() {
       heading.style.gap = '8px';
     
       const caret = document.createElement('span');
-      caret.textContent = collectionToggleState ? '▼' : '►'; // Use saved toggle state
+      caret.textContent = collectionToggleState ? '▼' : '►';
     
       const headingText = document.createElement('span');
       headingText.textContent = `${activeCollection.name}`;
+      
+      // Add Edit/Done button for the collection
+      const editBtn = document.createElement('button');
+          editBtn.className = 'toggle-button';
+          editBtn.setAttribute('title', activeCollectionEditMode ? 'Done' : 'Edit');
+          editBtn.innerHTML = activeCollectionEditMode ? 
+            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"</path></svg>': 
+            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>'
+            ;
+          editBtn.style.marginLeft = 'auto';
+          editBtn.addEventListener('click', function(event) {
+            event.stopPropagation(); // Prevent triggering the heading click
+            toggleActiveCollectionEditMode();
+          });
     
       heading.appendChild(caret);
       heading.appendChild(headingText);
+      heading.appendChild(editBtn);
     
       const collectionContainer = document.createElement('div');
       collectionContainer.className = 'collection-container';
-      // Set display based on saved toggle state
       collectionContainer.style.display = collectionToggleState ? 'block' : 'none';
     
-      activeCollection.prompts.forEach((item) => {
-        const promptItem = createPromptItemElement(item.text, {
-          source: '',
-          includeEdit: false,
-          includeDelete: false,
-          includeSaveToCollection: false,
-          includeSaveToBuffer: false
-        });
-        collectionContainer.appendChild(promptItem);
+      activeCollection.prompts.forEach((prompt, promptIndex) => {
+        // Get the text from the prompt object
+        const promptText = typeof prompt === 'string' ? prompt : prompt.text;
+        
+        if (activeCollectionEditMode) {
+          // Create custom prompt item with edit/delete capabilities for collection
+          const promptItem = document.createElement('div');
+          promptItem.className = 'prompt-item';
+          
+          const promptTextDiv = document.createElement('div');
+          promptTextDiv.className = 'prompt-text';
+          
+          // Display text reduced to 50 symbols 
+          const displayText = promptText.length > 50 ? promptText.substring(0, 50) + '...' : promptText;
+          promptTextDiv.textContent = displayText;
+          promptTextDiv.setAttribute('data-full-text', promptText);
+          promptTextDiv.setAttribute('data-expanded', 'false');
+          
+          const actions = document.createElement('div');
+          actions.className = 'prompt-actions';
+          
+          // Copy button
+          const copyBtn = document.createElement('button');
+          copyBtn.textContent = 'Copy';
+          copyBtn.addEventListener('click', () => copyToClipboard(promptText, copyBtn));
+          actions.appendChild(copyBtn);
+          
+          // Edit button
+          const editBtn = document.createElement('button');
+          editBtn.textContent = 'Edit';
+          editBtn.addEventListener('click', () => editCollectionPrompt(activeIndex, promptIndex));
+          actions.appendChild(editBtn);
+          
+          // Delete button
+          const deleteBtn = document.createElement('button');
+          deleteBtn.textContent = 'Delete';
+          deleteBtn.addEventListener('click', () => deleteCollectionPrompt(activeIndex, promptIndex));
+          actions.appendChild(deleteBtn);
+          
+          promptItem.appendChild(promptTextDiv);
+          promptItem.appendChild(actions);
+          
+          // Make the prompt text expandable on click
+          promptTextDiv.addEventListener('click', function() {
+            const isExpanded = this.getAttribute('data-expanded') === 'true';
+            if (isExpanded) {
+              this.textContent = displayText;
+              this.setAttribute('data-expanded', 'false');
+            } else {
+              this.textContent = this.getAttribute('data-full-text');
+              this.setAttribute('data-expanded', 'true');
+            }
+          });
+          
+          // Add the double-click listener to copy the text to clipboard
+          promptTextDiv.addEventListener('dblclick', function() {
+            copyToClipboard(promptText, copyBtn);
+          });
+          
+          collectionContainer.appendChild(promptItem);
+        } else {
+          // Use the standard function to create prompt items when not in edit mode
+          const promptItem = createPromptItemElement(promptText, {
+            source: '',
+            includeEdit: false,
+            includeDelete: false,
+            includeSaveToCollection: false,
+            includeSaveToBuffer: false // Allow saving to buffer when not in edit mode
+          });
+          collectionContainer.appendChild(promptItem);
+        }
       });
     
       // Use the saved toggle state
@@ -114,6 +188,39 @@ function loadBufferItems() {
       bufferList.appendChild(heading);
       bufferList.appendChild(collectionContainer);
     } 
+  });
+}
+
+// Function to edit a prompt within a collection
+function editCollectionPrompt(collectionIndex, promptIndex) {
+  chrome.storage.local.get('promptCollections', function(data) {
+    const collections = data.promptCollections || [];
+    if (!collections[collectionIndex] || !collections[collectionIndex].prompts[promptIndex]) {
+      alert('Prompt not found.');
+      return;
+    }
+    
+    const prompt = collections[collectionIndex].prompts[promptIndex];
+    const promptText = typeof prompt === 'string' ? prompt : prompt.text;
+    
+    // Show dialog to edit the prompt text
+    const newText = window.prompt('Edit prompt:', promptText);
+    if (newText === null) return; // User clicked Cancel
+    
+    // Update the prompt
+    if (typeof prompt === 'string') {
+      collections[collectionIndex].prompts[promptIndex] = newText;
+    } else {
+      collections[collectionIndex].prompts[promptIndex].text = newText;
+    }
+    
+    // Update the collection's "updated" timestamp
+    collections[collectionIndex].updated = Date.now();
+    
+    // Save back to storage
+    chrome.storage.local.set({ promptCollections: collections }, function() {
+      loadBufferItems(); // Refresh the display
+    });
   });
 }
 // Unified function to create prompt item elements
@@ -252,21 +359,43 @@ function deletePrompt(index) {
 function editPrompt(index) {
   chrome.storage.local.get('promptBuffer', function(data) {
     let buffer = data.promptBuffer || [];
-    // Convert from display index (reversed) to actual index
     const actualIndex = buffer.length - 1 - index;
-    
+
     const text = buffer[actualIndex];
     const promptInput = document.getElementById('prompt-input');
     promptInput.value = text;
-    
-    // Delete the old prompt
+    promptInput.focus();
+
+    // Remove old entry
     buffer.splice(actualIndex, 1);
-    
+
+    // Save updated buffer without the old item
     chrome.storage.local.set({ promptBuffer: buffer }, function() {
       loadBufferItems();
     });
+
+    // Define helper function inside
+    function completeEdit(newText) {
+      chrome.storage.local.get('promptBuffer', function(data) {
+        let buffer = data.promptBuffer || [];
+        buffer.push(newText); // Add updated text to buffer
+        chrome.storage.local.set({ promptBuffer: buffer }, function() {
+          loadBufferItems();
+        });
+      });
+
+      promptInput.value = '';
+    }
+
+    // Listen for Enter key
+    promptInput.onkeydown = function(e) {
+      if (e.key === 'Enter') {
+        completeEdit(promptInput.value);
+      }
+    };
   });
 }
+
 
 //////////////////////////
 // COLLECTION FUNCTIONS //
@@ -340,7 +469,20 @@ function loadCollections() {
 }
 
 // Updated Active Collection Function
-
+function toggleActiveCollectionEditMode() {
+  activeCollectionEditMode = !activeCollectionEditMode;
+  
+  // Update the edit button appearance if it exists
+  const editBtn = document.querySelector('.collection-container').previousSibling.querySelector('.icon-button');
+  if (editBtn) {
+    editBtn.setAttribute('title', activeCollectionEditMode ? 'Done' : 'Edit');
+    editBtn.innerHTML = activeCollectionEditMode ? 
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>' : 
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"</path></svg>';
+  }
+  
+  loadBufferItems(); // Reload the buffer display with edit controls
+}
 function updateActiveCollectionUI(activeIndex) {
   // Get all collection items
   const collectionItems = document.querySelectorAll('.collection-item');
@@ -470,8 +612,11 @@ function viewCollection(index) {
   });
 }
 
-// Update makeCollectionActive to reset toggle state when changing collections
+
 function makeCollectionActive(index) {
+  // Reset edit mode
+  activeCollectionEditMode = false;
+  
   // When making a collection active, we'll default to expanded state
   chrome.storage.local.set({ 
     activeCollectionIndex: index,
@@ -482,86 +627,59 @@ function makeCollectionActive(index) {
     loadBufferItems(); // Re-render Buffer tab
   });
 }
-// Import collection from JSON file
-function importCollection() {
-  // Create a hidden file input element
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = '.json';
-  fileInput.style.display = 'none';
-  document.body.appendChild(fileInput);
-  
-  // Trigger the file selection dialog
-  fileInput.click();
-  
-  // Handle file selection
-  fileInput.addEventListener('change', function() {
-    if (fileInput.files.length === 0) {
-      document.body.removeChild(fileInput);
+
+// Function to edit a prompt within a collection
+function editCollectionPrompt(collectionIndex, promptIndex) {
+  chrome.storage.local.get('promptCollections', function(data) {
+    const collections = data.promptCollections || [];
+    if (!collections[collectionIndex] || !collections[collectionIndex].prompts[promptIndex]) {
+      alert('Prompt not found.');
       return;
     }
     
-    const file = fileInput.files[0];
-    const reader = new FileReader();
+    const prompt = collections[collectionIndex].prompts[promptIndex];
+    const promptText = typeof prompt === 'string' ? prompt : prompt.text;
     
-    reader.onload = function(event) {
-      try {
-        const collection = JSON.parse(event.target.result);
-        
-        // Validate the collection structure
-        if (!collection.name || !Array.isArray(collection.prompts)) {
-          alert('Invalid collection format. Collection must have a name and prompts array.');
-          document.body.removeChild(fileInput);
-          return;
-        }
-        
-        // Add timestamps if they don't exist
-        if (!collection.created) {
-          collection.created = Date.now();
-        }
-        if (!collection.updated) {
-          collection.updated = Date.now();
-        }
-        
-        // Save the imported collection
-        chrome.storage.local.get('promptCollections', function(data) {
-          let collections = data.promptCollections || [];
-          
-          // Check if a collection with the same name already exists
-          const existingCollectionIndex = collections.findIndex(c => c.name === collection.name);
-          
-          if (existingCollectionIndex !== -1) {
-            const overwrite = confirm(`A collection named "${collection.name}" already exists. Overwrite it?`);
-            
-            if (overwrite) {
-              collections[existingCollectionIndex] = collection;
-            } else {
-              // Ask for a new name
-              const newName = prompt('Enter a new name for the imported collection:');
-              if (!newName) {
-                document.body.removeChild(fileInput);
-                return;
-              }
-              collection.name = newName;
-              collections.push(collection);
-            }
-          } else {
-            collections.push(collection);
-          }
-          
-          chrome.storage.local.set({ promptCollections: collections }, function() {
-            alert(`Collection "${collection.name}" imported successfully with ${collection.prompts.length} prompts.`);
-            loadCollections();
-            document.body.removeChild(fileInput);
-          });
-        });
-      } catch (error) {
-        alert('Error importing collection: ' + error.message);
-        document.body.removeChild(fileInput);
-      }
-    };
+    // Show dialog to edit the prompt text
+    const newText = window.prompt('Edit prompt:', promptText);
+    if (newText === null) return; // User clicked Cancel
     
-    reader.readAsText(file);
+    // Update the prompt
+    if (typeof prompt === 'string') {
+      collections[collectionIndex].prompts[promptIndex] = newText;
+    } else {
+      collections[collectionIndex].prompts[promptIndex].text = newText;
+    }
+    
+    // Update the collection's "updated" timestamp
+    collections[collectionIndex].updated = Date.now();
+    
+    // Save back to storage
+    chrome.storage.local.set({ promptCollections: collections }, function() {
+      loadBufferItems(); // Refresh the display
+    });
+  });
+}
+
+// Function to delete a prompt within a collection
+function deleteCollectionPrompt(collectionIndex, promptIndex) {
+  chrome.storage.local.get('promptCollections', function(data) {
+    const collections = data.promptCollections || [];
+    if (!collections[collectionIndex]) return;
+    
+    const confirmDelete = confirm('Delete this prompt from the collection?');
+    if (!confirmDelete) return;
+    
+    // Remove the prompt
+    collections[collectionIndex].prompts.splice(promptIndex, 1);
+    
+    // Update the collection's "updated" timestamp
+    collections[collectionIndex].updated = Date.now();
+    
+    // Save back to storage
+    chrome.storage.local.set({ promptCollections: collections }, function() {
+      loadBufferItems(); // Refresh the display
+    });
   });
 }
 
@@ -590,13 +708,22 @@ function deleteCollection(index) {
 }
 
 
-//////////////////////////
-// BUTTON FUNCTIONS     //
-/////////////////////////
+///////////////////////////////////////////
+// BUTTON (event listener FUNCTIONS     //
+/////////////////////////////////////////
 
 // Set up event listeners
 function setupEventListeners() {
-  // Save to buffer button
+  
+  
+      // JS-powered external help URL
+    document.getElementById('help-link').addEventListener('click', function(event) {
+      event.preventDefault(); // Prevent the default anchor behavior
+      const helpUrl = "https://balsam-copper-ded.notion.site/CopyPastePrompt-1d2537cd5c798057b425f886d2e59271";
+      chrome.tabs.create({ url: helpUrl });
+    });
+  
+  // Save to buffer button for NEW PROMPT ONLY
   document.getElementById('save-to-buffer').addEventListener('click', function() {
     const promptInput = document.getElementById('prompt-input');
     const text = promptInput.value.trim();
@@ -604,6 +731,17 @@ function setupEventListeners() {
     if (text) {
       saveToBuffer(text);
       promptInput.value = '';
+    }
+  });
+   // Save to collection button for NEW PROMPT ONLY
+
+  document.getElementById('saveToCollection').addEventListener('click', function() {
+    const promptInput = document.getElementById('prompt-input');
+    const text = promptInput.value.trim();
+    
+    if (text) {
+      saveToCollection(text);
+      promptInput.value = ''; // Clear the input field after saving
     }
   });
   
