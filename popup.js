@@ -49,10 +49,10 @@ function loadBufferItems() {
     bufferList.innerHTML = '';
 
     bufferCount.textContent = `(${buffer.length}/10)`;
-
-    if (buffer.length === 0) {
+    const hasActiveCollection = typeof activeIndex === 'number' && collections[activeIndex];
+    if (buffer.length === 0 && !hasActiveCollection) {
       bufferList.innerHTML += '<div class="empty-message">No prompts saved in buffer yet</div>';
-    } else {
+    } else if (buffer.length > 0) {
       buffer.slice().reverse().forEach((item, index) => {
         const promptItem = createPromptItemElement(item, {
           index,
@@ -62,11 +62,11 @@ function loadBufferItems() {
     }
     
     // Show active collection (if any)
-    if (typeof activeIndex === 'number' && collections[activeIndex]) {
+    if (hasActiveCollection) {
       const activeCollection = collections[activeIndex];
     
-      const heading = document.createElement('h3');
-      heading.className = 'section-heading';
+      const heading = document.createElement('h2');
+      //heading.className = 'section-heading';
       heading.style.cursor = 'pointer';
       heading.style.display = 'flex';
       heading.style.alignItems = 'center';
@@ -74,7 +74,7 @@ function loadBufferItems() {
     
       const caret = document.createElement('span');
       caret.textContent = collectionToggleState ? '▼' : '►';
-    
+      caret.style.fontSize = '0.75rem';
       const headingText = document.createElement('span');
       headingText.textContent = `${activeCollection.name}`;
       
@@ -252,7 +252,7 @@ function createPromptItemElement(text, options = {}) {
   if (source) {
     const sourceElement = document.createElement('div');
     sourceElement.className = 'prompt-source';
-    sourceElement.textContent = `Source: ${source}`;
+    sourceElement.textContent = `${source}`;
     sourceElement.style.fontSize = '12px';
     sourceElement.style.color = '#777';
     sourceElement.style.marginBottom = '8px';
@@ -264,7 +264,7 @@ function createPromptItemElement(text, options = {}) {
   
   // Copy button (always included)
   const copyBtn = document.createElement('button');
-  copyBtn.textContent = 'Copy';
+  copyBtn.textContent = 'Copy to clipboard';
   copyBtn.addEventListener('click', () => copyToClipboard(text, copyBtn));
   actions.appendChild(copyBtn);
   
@@ -285,7 +285,7 @@ function createPromptItemElement(text, options = {}) {
   
   if (includeSaveToCollection) {
     const saveToCollectionBtn = document.createElement('button');
-    saveToCollectionBtn.textContent = 'Save to Collection';
+    saveToCollectionBtn.textContent = 'Save';
     saveToCollectionBtn.addEventListener('click', () => saveToCollection(text));
     actions.appendChild(saveToCollectionBtn);
   }
@@ -436,6 +436,7 @@ function saveToCollection(text) {
     chrome.storage.local.set({ promptCollections: collections }, function() {
       alert(`Prompt saved to "${selectedName}" collection.`);
       loadCollections();
+      loadBufferItems();
     });
   });
 }
@@ -533,6 +534,11 @@ function createCollectionItem(collection, index) {
   activateBtn.addEventListener('click', () => makeCollectionActive(index));
   actions.appendChild(activateBtn);
 
+  const renameBtn = document.createElement('button');
+  renameBtn.textContent = 'Rename';
+  renameBtn.addEventListener('click', () => renameCollection(index));
+  actions.appendChild(renameBtn);
+
   const exportBtn = document.createElement('button');
   exportBtn.textContent = 'Export';
   exportBtn.addEventListener('click', () => exportCollection(collection));
@@ -549,6 +555,52 @@ function createCollectionItem(collection, index) {
   item.appendChild(actions);
   
   return item;
+}
+
+// Rename Collection
+function renameCollection(index) {
+  chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], function(data) {
+    const collections = data.promptCollections || [];
+    const activeIndex = data.activeCollectionIndex;
+    
+    if (!collections[index]) {
+      alert('Collection not found.');
+      return;
+    }
+    
+    const currentName = collections[index].name;
+    const newName = prompt('Enter a new name for the collection:', currentName);
+    
+    if (!newName || newName === currentName) {
+      // User cancelled or didn't change the name
+      return;
+    }
+    
+    // Check if the new name already exists in other collections
+    const nameExists = collections.some((c, i) => i !== index && c.name === newName);
+    if (nameExists) {
+      alert('A collection with this name already exists. Please choose a different name.');
+      return;
+    }
+    
+    // Update the collection name
+    collections[index].name = newName;
+    collections[index].updated = Date.now();
+    
+    // Save back to storage
+    chrome.storage.local.set({ promptCollections: collections }, function() {
+      // Refresh the collections list
+      loadCollections();
+      
+      // Also refresh buffer items if this was the active collection
+      if (activeIndex === index) {
+        loadBufferItems();
+      }
+      
+      // Show confirmation
+      alert(`Collection renamed to "${newName}"`);
+    });
+  });
 }
 
 // Implemented viewCollection function
