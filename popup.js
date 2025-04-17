@@ -1,5 +1,5 @@
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', () => {
   // Initialize the extension
   initTabs();
   loadBufferItems();
@@ -10,12 +10,12 @@ document.addEventListener('DOMContentLoaded', function() {
   const toggleButton = document.getElementById('toggle-input');
   toggleButton.textContent = '+';
 });
-  // Let active collections be not in edit mode in the start
-  let activeCollectionEditMode = false;
 
+// Let active collections be not in edit mode in the start
+let activeCollectionEditMode = false;
 
 // Tab functionality
-function initTabs() {
+const initTabs = () => {
   const tabs = document.querySelectorAll('.tab-button');
   const contents = document.querySelectorAll('.tab-content');
   
@@ -31,12 +31,11 @@ function initTabs() {
       document.getElementById(contentId).classList.add('active');
     });
   });
-}
+};
 
 // Load buffer items from storage
-// Update the loadBufferItems function to add edit/delete buttons for collection prompts when in edit mode
-function loadBufferItems() {
-  chrome.storage.local.get(['promptBuffer', 'promptCollections', 'activeCollectionIndex', 'collectionToggleState'], function(data) {
+const loadBufferItems = () => {
+  chrome.storage.local.get(['promptBuffer', 'promptCollections', 'activeCollectionIndex', 'collectionToggleState'], data => {
     const bufferList = document.getElementById('buffer-list');
     const bufferCount = document.getElementById('buffer-count');
 
@@ -66,7 +65,6 @@ function loadBufferItems() {
       const activeCollection = collections[activeIndex];
     
       const heading = document.createElement('h2');
-      //heading.className = 'section-heading';
       heading.style.cursor = 'pointer';
       heading.style.display = 'flex';
       heading.style.alignItems = 'center';
@@ -80,17 +78,16 @@ function loadBufferItems() {
       
       // Add Edit/Done button for the collection
       const editBtn = document.createElement('button');
-          editBtn.className = 'toggle-button';
-          editBtn.setAttribute('title', activeCollectionEditMode ? 'Done' : 'Edit');
-          editBtn.innerHTML = activeCollectionEditMode ? 
-            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"</path></svg>': 
-            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>'
-            ;
-          editBtn.style.marginLeft = 'auto';
-          editBtn.addEventListener('click', function(event) {
-            event.stopPropagation(); // Prevent triggering the heading click
-            toggleActiveCollectionEditMode();
-          });
+      editBtn.className = 'toggle-button';
+      editBtn.setAttribute('title', activeCollectionEditMode ? 'Done' : 'Edit');
+      editBtn.innerHTML = activeCollectionEditMode ? 
+        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"</path></svg>': 
+        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>';
+      editBtn.style.marginLeft = 'auto';
+      editBtn.addEventListener('click', event => {
+        event.stopPropagation(); // Prevent triggering the heading click
+        toggleActiveCollectionEditMode();
+      });
     
       heading.appendChild(caret);
       heading.appendChild(headingText);
@@ -155,7 +152,7 @@ function loadBufferItems() {
           });
           
           // Add the double-click listener to copy the text to clipboard
-          promptTextDiv.addEventListener('dblclick', function() {
+          promptTextDiv.addEventListener('dblclick', () => {
             copyToClipboard(promptText, copyBtn);
           });
           
@@ -189,11 +186,11 @@ function loadBufferItems() {
       bufferList.appendChild(collectionContainer);
     } 
   });
-}
+};
 
 // Function to edit a prompt within a collection
-function editCollectionPrompt(collectionIndex, promptIndex) {
-  chrome.storage.local.get('promptCollections', function(data) {
+const editCollectionPrompt = (collectionIndex, promptIndex) => {
+  chrome.storage.local.get('promptCollections', data => {
     const collections = data.promptCollections || [];
     if (!collections[collectionIndex] || !collections[collectionIndex].prompts[promptIndex]) {
       alert('Prompt not found.');
@@ -218,13 +215,14 @@ function editCollectionPrompt(collectionIndex, promptIndex) {
     collections[collectionIndex].updated = Date.now();
     
     // Save back to storage
-    chrome.storage.local.set({ promptCollections: collections }, function() {
+    chrome.storage.local.set({ promptCollections: collections }, () => {
       loadBufferItems(); // Refresh the display
     });
   });
-}
+};
+
 // Unified function to create prompt item elements
-function createPromptItemElement(text, options = {}) {
+const createPromptItemElement = (text, options = {}) => {
   const { 
     index = null, 
     source = null, 
@@ -239,16 +237,14 @@ function createPromptItemElement(text, options = {}) {
   
   const promptText = document.createElement('div');
   promptText.className = 'prompt-text';
-  
 
-    // Display text reduced to 50 symbols 
-
+  // Display text reduced to 50 symbols
   const displayText = text.length > 50 ? text.substring(0, 50) + '...' : text;
   promptText.textContent = displayText;
   promptText.setAttribute('data-full-text', text);
   promptText.setAttribute('data-expanded', 'false');
 
-  // Add source , buffer or collection mainly
+  // Add source, buffer or collection mainly
   if (source) {
     const sourceElement = document.createElement('div');
     sourceElement.className = 'prompt-source';
@@ -313,15 +309,15 @@ function createPromptItemElement(text, options = {}) {
   });
 
   // Add the double-click listener to copy the text to clipboard
-  promptText.addEventListener('dblclick', function() {
+  promptText.addEventListener('dblclick', () => {
     copyToClipboard(text, copyBtn);
   });
   
   return item;
-}
+};
 
 // Unified Copy text to clipboard function
-function copyToClipboard(text, button) {
+const copyToClipboard = (text, button) => {
   navigator.clipboard.writeText(text).then(() => {
     // If a button reference was passed, update its appearance
     if (button) {
@@ -338,26 +334,26 @@ function copyToClipboard(text, button) {
   }).catch(err => {
     console.error('Failed to copy text: ', err);
   });
-}
+};
 
 // Delete a prompt from buffer
-function deletePrompt(index) {
-  chrome.storage.local.get('promptBuffer', function(data) {
+const deletePrompt = (index) => {
+  chrome.storage.local.get('promptBuffer', data => {
     let buffer = data.promptBuffer || [];
     // Convert from display index (reversed) to actual index
     const actualIndex = buffer.length - 1 - index;
     
     buffer.splice(actualIndex, 1);
     
-    chrome.storage.local.set({ promptBuffer: buffer }, function() {
+    chrome.storage.local.set({ promptBuffer: buffer }, () => {
       loadBufferItems();
     });
   });
-}
+};
 
 // Edit a prompt
-function editPrompt(index) {
-  chrome.storage.local.get('promptBuffer', function(data) {
+const editPrompt = (index) => {
+  chrome.storage.local.get('promptBuffer', data => {
     let buffer = data.promptBuffer || [];
     const actualIndex = buffer.length - 1 - index;
 
@@ -370,31 +366,31 @@ function editPrompt(index) {
     buffer.splice(actualIndex, 1);
 
     // Save updated buffer without the old item
-    chrome.storage.local.set({ promptBuffer: buffer }, function() {
+    chrome.storage.local.set({ promptBuffer: buffer }, () => {
       loadBufferItems();
     });
 
     // Define helper function inside
-    function completeEdit(newText) {
-      chrome.storage.local.get('promptBuffer', function(data) {
+    const completeEdit = (newText) => {
+      chrome.storage.local.get('promptBuffer', data => {
         let buffer = data.promptBuffer || [];
         buffer.push(newText); // Add updated text to buffer
-        chrome.storage.local.set({ promptBuffer: buffer }, function() {
+        chrome.storage.local.set({ promptBuffer: buffer }, () => {
           loadBufferItems();
         });
       });
 
       promptInput.value = '';
-    }
+    };
 
     // Listen for Enter key
-    promptInput.onkeydown = function(e) {
+    promptInput.onkeydown = (e) => {
       if (e.key === 'Enter') {
         completeEdit(promptInput.value);
       }
     };
   });
-}
+};
 
 
 //////////////////////////
@@ -402,8 +398,8 @@ function editPrompt(index) {
 /////////////////////////
 
 // Implemented saveToCollection function
-function saveToCollection(text) {
-  chrome.storage.local.get('promptCollections', function(data) {
+const saveToCollection = (text) => {
+  chrome.storage.local.get('promptCollections', data => {
     const collections = data.promptCollections || [];
     
     if (collections.length === 0) {
@@ -433,17 +429,17 @@ function saveToCollection(text) {
     collections[collectionIndex].updated = Date.now();
     
     // Save back to storage
-    chrome.storage.local.set({ promptCollections: collections }, function() {
+    chrome.storage.local.set({ promptCollections: collections }, () => {
       alert(`Prompt saved to "${selectedName}" collection.`);
       loadCollections();
       loadBufferItems();
     });
   });
-}
+};
 
 // Load collections from storage
-function loadCollections() {
-  chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], function(data) {
+const loadCollections = () => {
+  chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
     const collectionsList = document.getElementById('collections-list');
     const collections = data.promptCollections || [];
     const activeIndex = data.activeCollectionIndex;
@@ -467,24 +463,25 @@ function loadCollections() {
       updateActiveCollectionUI(activeIndex);
     }
   });
-}
+};
 
 // Updated Active Collection Function
-function toggleActiveCollectionEditMode() {
+const toggleActiveCollectionEditMode = () => {
   activeCollectionEditMode = !activeCollectionEditMode;
   
   // Update the edit button appearance if it exists
-  const editBtn = document.querySelector('.collection-container').previousSibling.querySelector('.icon-button');
+  const editBtn = document.querySelector('.collection-container').previousSibling.querySelector('.toggle-button');
   if (editBtn) {
     editBtn.setAttribute('title', activeCollectionEditMode ? 'Done' : 'Edit');
     editBtn.innerHTML = activeCollectionEditMode ? 
-      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>' : 
-      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"</path></svg>';
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"</path></svg>' : 
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>';
   }
   
   loadBufferItems(); // Reload the buffer display with edit controls
-}
-function updateActiveCollectionUI(activeIndex) {
+};
+
+const updateActiveCollectionUI = (activeIndex) => {
   // Get all collection items
   const collectionItems = document.querySelectorAll('.collection-item');
   
@@ -511,9 +508,10 @@ function updateActiveCollectionUI(activeIndex) {
       newBtn.addEventListener('click', () => makeCollectionActive(index));
     }
   });
-}
+};
+
 // Create a collection item element with updated Active button
-function createCollectionItem(collection, index) {
+const createCollectionItem = (collection, index) => {
   const item = document.createElement('div');
   item.className = 'collection-item';
   
@@ -555,11 +553,11 @@ function createCollectionItem(collection, index) {
   item.appendChild(actions);
   
   return item;
-}
+};
 
 // Rename Collection
-function renameCollection(index) {
-  chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], function(data) {
+const renameCollection = (index) => {
+  chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
     const collections = data.promptCollections || [];
     const activeIndex = data.activeCollectionIndex;
     
@@ -588,7 +586,7 @@ function renameCollection(index) {
     collections[index].updated = Date.now();
     
     // Save back to storage
-    chrome.storage.local.set({ promptCollections: collections }, function() {
+    chrome.storage.local.set({ promptCollections: collections }, () => {
       // Refresh the collections list
       loadCollections();
       
@@ -601,11 +599,11 @@ function renameCollection(index) {
       alert(`Collection renamed to "${newName}"`);
     });
   });
-}
+};
 
 // Implemented viewCollection function
-function viewCollection(index) {
-  chrome.storage.local.get('promptCollections', function(data) {
+const viewCollection = (index) => {
+  chrome.storage.local.get('promptCollections', data => {
     const collections = data.promptCollections || [];
     if (!collections[index]) return;
 
@@ -626,7 +624,7 @@ function viewCollection(index) {
 
     const promptsContainer = document.getElementById('collection-prompts');
 
-    function renderPrompts() {
+    const renderPrompts = () => {
       promptsContainer.innerHTML = ''; // Clear existing content
 
       if (collection.prompts.length === 0) {
@@ -635,26 +633,31 @@ function viewCollection(index) {
       }
 
       collection.prompts.forEach((prompt, promptIndex) => {
-        const promptElement = createPromptItemElement(prompt.text, {
-          includeSaveToCollection: false,
-          includeEdit: false,
-          includeDelete: true
-        });
+        const promptElement = createPromptItemElement(
+          typeof prompt === 'string' ? prompt : prompt.text, 
+          {
+            includeSaveToCollection: false,
+            includeEdit: false,
+            includeDelete: true
+          }
+        );
 
         const deleteBtn = promptElement.querySelector('button:nth-child(2)');
-        deleteBtn.replaceWith(deleteBtn.cloneNode(true)); // Remove any old listeners
-        const newDeleteBtn = promptElement.querySelector('button:nth-child(2)');
+        if (deleteBtn) {
+          const newDeleteBtn = deleteBtn.cloneNode(true); // Remove any old listeners
+          deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
 
-        newDeleteBtn.addEventListener('click', () => {
-          collection.prompts.splice(promptIndex, 1);
-          chrome.storage.local.set({ promptCollections: collections }, () => {
-            renderPrompts(); // Re-render everything
+          newDeleteBtn.addEventListener('click', () => {
+            collection.prompts.splice(promptIndex, 1);
+            chrome.storage.local.set({ promptCollections: collections }, () => {
+              renderPrompts(); // Re-render everything
+            });
           });
-        });
+        }
 
         promptsContainer.appendChild(promptElement);
       });
-    }
+    };
 
     renderPrompts();
 
@@ -662,10 +665,9 @@ function viewCollection(index) {
       dialog.remove();
     });
   });
-}
+};
 
-
-function makeCollectionActive(index) {
+const makeCollectionActive = (index) => {
   // Reset edit mode
   activeCollectionEditMode = false;
   
@@ -673,49 +675,16 @@ function makeCollectionActive(index) {
   chrome.storage.local.set({ 
     activeCollectionIndex: index,
     collectionToggleState: true  // Default to expanded when changing collections
-  }, function() {
+  }, () => {
     // Update the UI to reflect the change immediately
     updateActiveCollectionUI(index);
     loadBufferItems(); // Re-render Buffer tab
   });
-}
-
-// Function to edit a prompt within a collection
-function editCollectionPrompt(collectionIndex, promptIndex) {
-  chrome.storage.local.get('promptCollections', function(data) {
-    const collections = data.promptCollections || [];
-    if (!collections[collectionIndex] || !collections[collectionIndex].prompts[promptIndex]) {
-      alert('Prompt not found.');
-      return;
-    }
-    
-    const prompt = collections[collectionIndex].prompts[promptIndex];
-    const promptText = typeof prompt === 'string' ? prompt : prompt.text;
-    
-    // Show dialog to edit the prompt text
-    const newText = window.prompt('Edit prompt:', promptText);
-    if (newText === null) return; // User clicked Cancel
-    
-    // Update the prompt
-    if (typeof prompt === 'string') {
-      collections[collectionIndex].prompts[promptIndex] = newText;
-    } else {
-      collections[collectionIndex].prompts[promptIndex].text = newText;
-    }
-    
-    // Update the collection's "updated" timestamp
-    collections[collectionIndex].updated = Date.now();
-    
-    // Save back to storage
-    chrome.storage.local.set({ promptCollections: collections }, function() {
-      loadBufferItems(); // Refresh the display
-    });
-  });
-}
+};
 
 // Function to delete a prompt within a collection
-function deleteCollectionPrompt(collectionIndex, promptIndex) {
-  chrome.storage.local.get('promptCollections', function(data) {
+const deleteCollectionPrompt = (collectionIndex, promptIndex) => {
+  chrome.storage.local.get('promptCollections', data => {
     const collections = data.promptCollections || [];
     if (!collections[collectionIndex]) return;
     
@@ -729,14 +698,14 @@ function deleteCollectionPrompt(collectionIndex, promptIndex) {
     collections[collectionIndex].updated = Date.now();
     
     // Save back to storage
-    chrome.storage.local.set({ promptCollections: collections }, function() {
+    chrome.storage.local.set({ promptCollections: collections }, () => {
       loadBufferItems(); // Refresh the display
     });
   });
-}
+};
 
 // Import collection from JSON file
-function importCollection() {
+const importCollection = () => {
   // Create a hidden file input element
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
@@ -757,7 +726,7 @@ function importCollection() {
     const file = fileInput.files[0];
     const reader = new FileReader();
     
-    reader.onload = function(event) {
+    reader.onload = (event) => {
       try {
         const collection = JSON.parse(event.target.result);
         
@@ -777,7 +746,7 @@ function importCollection() {
         }
         
         // Save the imported collection
-        chrome.storage.local.get('promptCollections', function(data) {
+        chrome.storage.local.get('promptCollections', data => {
           let collections = data.promptCollections || [];
           
           // Check if a collection with the same name already exists
@@ -802,7 +771,7 @@ function importCollection() {
             collections.push(collection);
           }
           
-          chrome.storage.local.set({ promptCollections: collections }, function() {
+          chrome.storage.local.set({ promptCollections: collections }, () => {
             alert(`Collection "${collection.name}" imported successfully with ${collection.prompts.length} prompts.`);
             loadCollections();
             document.body.removeChild(fileInput);
@@ -816,10 +785,10 @@ function importCollection() {
     
     reader.readAsText(file);
   });
-}
+};
 
 // Export collection to JSON
-function exportCollection(collection) {
+const exportCollection = (collection) => {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(collection));
   const downloadAnchorNode = document.createElement('a');
   downloadAnchorNode.setAttribute("href", dataStr);
@@ -827,21 +796,43 @@ function exportCollection(collection) {
   document.body.appendChild(downloadAnchorNode); // Required for Firefox
   downloadAnchorNode.click();
   downloadAnchorNode.remove();
-}
+};
 
 // Delete collection
-function deleteCollection(index) {
-  chrome.storage.local.get('promptCollections', function(data) {
+const deleteCollection = (index) => {
+  chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
     let collections = data.promptCollections || [];
+    const activeIndex = data.activeCollectionIndex;
+    
+    // Get collection name and prompt count for the alert message
+    const collectionToDelete = collections[index];
+    if (!collectionToDelete) return;
+    
+    const promptCount = collectionToDelete.prompts.length;
+    const warningMessage = `You are about to delete "${collectionToDelete.name}" collection with ${promptCount} prompts. This action cannot be undone.\n\nDo you want to continue?`;
+    
+    const confirmDelete = confirm(warningMessage);
+    if (!confirmDelete) return;
+    
     collections.splice(index, 1);
     
-    chrome.storage.local.set({ promptCollections: collections }, function() {
+    // Update storage with new data
+    const updates = { promptCollections: collections };
+    
+    // If the deleted collection was active, remove the active index
+    if (activeIndex === index) {
+      updates.activeCollectionIndex = null;
+    } else if (activeIndex > index) {
+      // If the active collection is after the deleted one, adjust its index
+      updates.activeCollectionIndex = activeIndex - 1;
+    }
+    
+    chrome.storage.local.set(updates, () => {
       loadCollections();
+      loadBufferItems(); // Refresh buffer view if active collection changed
     });
   });
-}
-
-
+};
 ///////////////////////////////////////////
 // BUTTON (event listener FUNCTIONS     //
 /////////////////////////////////////////
