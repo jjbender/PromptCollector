@@ -844,7 +844,7 @@ function setupEventListeners() {
       // JS-powered external help URL
     document.getElementById('help-link').addEventListener('click', function(event) {
       event.preventDefault(); // Prevent the default anchor behavior
-      const helpUrl = "https://balsam-copper-ded.notion.site/CopyPastePrompt-1d2537cd5c798057b425f886d2e59271";
+      const helpUrl = "https://balsam-copper-ded.notion.site/Prompt-Collector-1d6537cd5c7980f888a3d7a02b3d8205";
       chrome.tabs.create({ url: helpUrl });
     });
   
@@ -969,7 +969,7 @@ function createNewCollection(name) {
 
 
 // Perform search
-function performSearch(term, scope) {
+const performSearch = (term, scope) => {
   const resultsContainer = document.getElementById('search-results');
   resultsContainer.innerHTML = '<div class="empty-message">Searching...</div>';
   
@@ -977,20 +977,20 @@ function performSearch(term, scope) {
   chrome.storage.local.get(['promptBuffer', 'promptCollections'], function(data) {
     let results = [];
     
-    if (scope === 'all' || scope === 'buffer') {
-      const buffer = data.promptBuffer || [];
-      const bufferResults = buffer.filter(item => 
-        item.toLowerCase().includes(term.toLowerCase())  // Case-insensitive search
-      ).map(item => ({ text: item, source: 'Buffer' }));
-      
-      results = results.concat(bufferResults);
-    }
+    // Search in buffer
+    const buffer = data.promptBuffer || [];
+    const bufferResults = buffer.filter(item => 
+      item.toLowerCase().includes(term.toLowerCase())  // Case-insensitive search
+    ).map(item => ({ text: item, source: 'Buffer' }));
     
-    if ((scope === 'all' || scope === 'collections') && data.promptCollections) {
+    results = results.concat(bufferResults);
+    
+    // Search in collections
+    if (data.promptCollections) {
       data.promptCollections.forEach(collection => {
         const collectionResults = collection.prompts
           .filter(item => {
-            // Make sure we handle both string and object formats for prompts
+            // Handle both string and object formats for prompts
             const promptText = typeof item === 'string' ? item : item.text;
             return promptText.toLowerCase().includes(term.toLowerCase());
           })

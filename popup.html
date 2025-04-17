@@ -3,17 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PromptKeeper</title>
+  <title>PromptCollector</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
   <div class="container">
-    <header>
-      <div class="tabs">
-        <button id="buffer-tab" class="tab-button active">Active Prompts</button>
-        <button id="collections-tab" class="tab-button">Keeper</button>
+    
+      <div class="tabs-container">
+        <div class="tabs">
+          <button id="buffer-tab" class="tab-button icon-tab active"></button>
+          <button id="collections-tab" class="tab-button icon-tab"></button>
+          <div class="search-header">
+            <input type="text" id="search-input" placeholder="Search..." />
+          </div>
+        </div>
+        
       </div>
-    </header>
+    
+
+    <div id="search-results" class="prompt-list">
+      <!-- Search results will be populated here -->
+      <div class="empty-message">Enter search terms above</div>
+    </div>
 
     <!-- Buffer Tab Content -->
     <div id="buffer-content" class="tab-content active">
@@ -42,13 +53,7 @@
 
     <!-- Collections Tab Content -->
     <div id="collections-content" class="tab-content">
-      <div class="search-header">
-        <input type="text" id="search-input" placeholder="Search prompts..." />
-        <select id="search-scope">
-          <option value="all">All Collections</option>
-          <option value="buffer">Buffer Only</option>
-        </select>
-      </div>
+      
 
       <div id="search-results" style="display: none;" class="prompt-list">
         <!-- Search results will be populated here -->
@@ -79,17 +84,14 @@
         </select>
       </div>
 
-      <div id="search-results" class="prompt-list">
-        <!-- Search results will be populated here -->
-        <div class="empty-message">Enter search terms above</div>
-      </div>
+      
     </div>
   </div>
 
   <!-- Footer -->
   <footer class="app-footer">
     <div class="footer-content">
-      <p>PromptKeeper &copy; 2025</p>
+      <p>PromptCollector &copy; 2025</p>
       
       <div class="footer-links">
         <a href="#" id="help-link">Visit Help</a>
