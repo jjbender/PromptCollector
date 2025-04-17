@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const getCurrentTheme = () => {
     const stored = localStorage.getItem(THEME_KEY);
     if (stored === 'light' || stored === 'dark') return stored;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'dark' : 'light';
   };
 
   const setTheme = (mode) => {

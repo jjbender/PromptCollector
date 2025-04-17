@@ -281,6 +281,7 @@ const createPromptItemElement = (text, options = {}) => {
   
   if (includeSaveToCollection) {
     const saveToCollectionBtn = document.createElement('button');
+    
     saveToCollectionBtn.textContent = 'Save';
     saveToCollectionBtn.addEventListener('click', () => saveToCollection(text));
     actions.appendChild(saveToCollectionBtn);
@@ -289,6 +290,7 @@ const createPromptItemElement = (text, options = {}) => {
   if (includeSaveToBuffer) {
     const saveToBufferBtn = document.createElement('button');
     saveToBufferBtn.textContent = 'Save to Buffer';
+    
     saveToBufferBtn.addEventListener('click', () => saveToBuffer(text));
     actions.appendChild(saveToBufferBtn);
   }
@@ -496,12 +498,13 @@ const updateActiveCollectionUI = (activeIndex) => {
     if (index === activeIndex) {
       // This is now the active collection
       newBtn.textContent = 'Active';
-      newBtn.classList.add('active-button');
+      
+      newBtn.classList.add('active-collection-button');
       newBtn.disabled = true;
     } else {
       // This is not the active collection
-      newBtn.textContent = 'Make Active';
-      newBtn.classList.remove('active-button');
+      newBtn.textContent = 'Activate';
+      newBtn.classList.remove('active-collection-button');;
       newBtn.disabled = false;
       
       // Add the event listener to make it active
@@ -510,7 +513,7 @@ const updateActiveCollectionUI = (activeIndex) => {
   });
 };
 
-// Create a collection item element with updated Active button
+
 const createCollectionItem = (collection, index) => {
   const item = document.createElement('div');
   item.className = 'collection-item';
@@ -528,7 +531,7 @@ const createCollectionItem = (collection, index) => {
   
   // Create a generic activate button (will be updated by updateActiveCollectionUI)
   const activateBtn = document.createElement('button');
-  activateBtn.textContent = 'Make Active';
+  activateBtn.textContent = 'Activate';
   activateBtn.addEventListener('click', () => makeCollectionActive(index));
   actions.appendChild(activateBtn);
 
@@ -601,7 +604,7 @@ const renameCollection = (index) => {
   });
 };
 
-// Implemented viewCollection function
+
 const viewCollection = (index) => {
   chrome.storage.local.get('promptCollections', data => {
     const collections = data.promptCollections || [];

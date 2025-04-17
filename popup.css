@@ -4,12 +4,14 @@
 
    :root {
     /* Color palette */
-    --primary: #6366f1;
-    --primary-hover: #4f46e5;
-    --secondary: #f43f5e;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --error: #ef4444;
+    
+      --primary: #5b8def;           /* Soft blue */
+      --primary-hover: #3f6fd8;     /* Deeper blue */
+      --secondary: #a855f7;         /* Vibrant violet */
+      --success: #34d399;           /* Mint green */
+      --warning: #facc15;           /* Warm yellow for contrast */
+      --error: #f87171;             /* Soft red for errors */
+    
     
     /* Neutral palette */
     --neutral-50: #fafafa;
@@ -127,7 +129,7 @@
    .container {
     width: 800px;
     max-width: 95%;
-    padding: 20px;
+    padding: 5px;
     flex: 1;
     margin: 0 auto;
   }
@@ -190,36 +192,36 @@
    5. BUTTONS & INTERACTIVE ELEMENTS
    ============================================== */
 
-button, .action-button {
-  padding: 10px 16px;
-  background-color: var(--primary);
-  color: white;
-  border: none;
-  border-radius: var(--border-radius-md); 
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
-  box-shadow: var(--shadow-sm); 
-}
+   button, .action-button {
+    padding: 10px 16px;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-full); 
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+    box-shadow: var(--shadow-sm); 
+  }
 
-button:hover, 
-.action-button:hover {
-  background-color: var(--primary-hover); 
-  transform: translateY(-2px); 
-  box-shadow: var(--shadow-md); 
-}
+  button:hover, 
+  .action-button:hover {
+    background-color: var(--primary-hover); 
+    transform: translateY(-2px); 
+    box-shadow: var(--shadow-md); 
+  }
 
-button:active, 
-.action-button:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-sm); 
-}
+  button:active, 
+  .action-button:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm); 
+  }
 
-button:focus, 
-.action-button:focus {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
+  button:focus, 
+  .action-button:focus {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
 /* Button variants */
 button.secondary {
   background-color: var(--primary-transparent);
@@ -230,23 +232,29 @@ button.secondary:hover {
   background-color: var(--primary-transparent-hover);
 }
 
-/* Disabled State */
+/* Disabled State 
 button:disabled, 
 .action-button:disabled {
   background-color: var(--neutral-200);
   color: var(--neutral-400);
   cursor: not-allowed;
   box-shadow: none;
+  transform: none;
   opacity: 0.7;
+}*/
+
+.active-collection-button{
+  background-color: var(--success);
 }
 
 /* Active state */
 .active-button {
-  background-color: var(--success);
+  background-color: var(--primary);
   color: white;
   cursor: default;
   box-shadow: var(--shadow-sm);
 }
+
 
 /* Toggle buttons */
 .toggle-button {
@@ -286,11 +294,13 @@ button:disabled,
   justify-content: center;
   transition: background-color var(--transition-fast), transform var(--transition-fast);
   box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
 .theme-toggle-button:hover {
   background-color: var(--neutral-300);
   transform: rotate(15deg); 
+  border-radius: 50%; 
 }
 /* Tab buttons */
 .tab-button:hover {
@@ -328,9 +338,13 @@ button:disabled,
   flex-wrap: flex-start;
 }
 
+.button-row .action-button {
+  margin: 0;
+  padding: 5px 10px; 
+}
 .prompt-actions button {
   margin: 0;
-  padding: 5px 10px;
+  padding: 5px 10px; 
   font-size: 12px;
 }
 
@@ -392,11 +406,13 @@ textarea {
   width: 100%;
   align-items: center;
   gap: 12px;
+  justify-content: space-between;
+  padding: 5px;
 }
 
 #buffer-tab, #collections-tab {
-  flex: 0 0 20%;
-  width: 20%;
+  flex: 0 0 auto; 
+  width: 36px; 
   min-width: 36px;
   height: 36px;
   padding: 0;
@@ -429,11 +445,11 @@ textarea {
    ============================================== */
 
    .search-header {
-    flex: 0 0 60%;
-    width: 60%;
+    flex: 0 0 auto;
+    width: auto;
     display: flex;
     margin: 0;
-    max-width: 60%;
+    max-width: none;
     gap: 12px;
     justify-content: flex-end;
   }
@@ -750,48 +766,57 @@ textarea {
    13. RESPONSIVE DESIGN
    ============================================== */
 
-@media (max-width: 640px) {
-  .container {
-    padding: 16px;
+   /* @media (max-width: 640px) {
+    .container {
+      padding: 16px;
+    }
+    
+    .button-row {
+      flex-direction: row;
+      gap: 8px;
+    }
+    
+    button, .action-button {
+      width: 100%;
+      justify-content: center;
+    }
+    
+    
+    .tabs {
+      flex-wrap: nowrap;
+      justify-content: space-between;
+    }
+    
+    #buffer-tab, #collections-tab {
+      flex: 0 0 auto;
+      width: 36px;
+    }
+    
+    .search-header {
+      flex: 0 0 auto;
+      width: auto;
+      max-width: none;
+    }
+    
+    #search-input {
+      width: 120px; 
+    }
   }
   
-  .button-row {
-    flex-direction: row;
-    gap: 8px;
+  @media (max-width: 400px) {
+   
+    .tabs {
+      flex-wrap: nowrap;
+      justify-content: space-between;
+    }
+    
+    #search-input {
+      width: 100px; 
+    }
+    
+    #search-scope {
+      width: 80px;
+      padding-right: 25px; 
+    }
   }
-  
-  button, .action-button {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  #buffer-tab, #collections-tab {
-    flex: 0 0 15%;
-    width: 15%;
-  }
-  
-  .search-header {
-    flex: 0 0 70%;
-    width: 70%;
-    max-width: 70%;
-  }
-}
-
-@media (max-width: 400px) {
-  .tabs {
-    flex-wrap: wrap;
-  }
-  
-  #buffer-tab, #collections-tab {
-    flex: 0 0 auto;
-    width: auto;
-  }
-  
-  .search-header {
-    flex: 1 0 100%;
-    width: 100%;
-    max-width: 100%;
-    margin-top: 8px;
-  }
-}
- 
+ */ 
