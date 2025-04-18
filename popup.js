@@ -76,6 +76,8 @@ const loadBufferItems = () => {
       const headingText = document.createElement('span');
       headingText.textContent = `${activeCollection.name}`;
       
+            
+
       // Add Edit/Done button for the collection
       const editBtn = document.createElement('button');
       editBtn.className = 'toggle-button';

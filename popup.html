@@ -11,8 +11,8 @@
     
       <div class="tabs-container">
         <div class="tabs">
-          <button id="buffer-tab" class="tab-button icon-tab active"></button>
-          <button id="collections-tab" class="tab-button icon-tab"></button>
+          <button id="buffer-tab" class="tab-button icon-tab active tooltip"><span class="tooltip-text">Active collection and buffer</span></button>
+          <button id="collections-tab" class="tab-button icon-tab tooltip"><span class="tooltip-text">Your local storage</span></button>
           <div class="search-header">
             <input type="text" id="search-input" placeholder="Search..." />
           </div>
@@ -31,7 +31,7 @@
       <div class="section-header">
         <h2>Buffer<span id="buffer-count">(0/10)</span></h2>
         <div class="button-row">
-        <button id="clipboard-to-active" class="toggle-button secondary" ></button>
+        <button id="clipboard-to-active" class="toggle-button secondary tooltip" ><span class="tooltip-text">Save to active collection</span></button>
         <button id="toggle-input" class="toggle-button" aria-label="Toggle input area">+</button>
       </div>
       </div>
@@ -67,7 +67,7 @@
         <h2>My Collections</h2>
         <div class="button-row">
           <button id="create-collection" class="toggle-button">+</button>
-          <button id="import-collection" class="toggle-button secondary"></button>
+          <button id="import-collection" class="toggle-button secondary tooltip"><span class="tooltip-text">Import collection</span></button>
         </div>
       </div>
 
@@ -81,10 +81,10 @@
     <div id="search-content" class="tab-content">
       <div class="search-header">
         <input type="text" id="search-input" placeholder="Search prompts..." />
-        <select id="search-scope">
+        <!-- <select id="search-scope">
           <option value="all">All Collections</option>
           <option value="buffer">Buffer Only</option>
-        </select>
+        </select> -->
       </div>
 
       
