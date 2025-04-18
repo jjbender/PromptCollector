@@ -399,31 +399,79 @@ const editPrompt = (index) => {
 // COLLECTION FUNCTIONS //
 /////////////////////////
 
-// Implemented saveToCollection function
+
 const saveToCollection = (text) => {
   chrome.storage.local.get('promptCollections', data => {
     const collections = data.promptCollections || [];
     
     if (collections.length === 0) {
-      // No collections exist yet
-      alert('Please create a collection first.');
+      // No collections exist yet, create one
+      const newCollectionName = prompt('No collections exist yet. Enter a name for your new collection:');
+      if (!newCollectionName) return; // User cancelled
+      
+      // Create new collection
+      const newCollection = {
+        name: newCollectionName,
+        created: Date.now(),
+        updated: Date.now(),
+        prompts: [{
+          text: text,
+          added: Date.now()
+        }]
+      };
+      
+      // Save new collection
+      chrome.storage.local.set({ 
+        promptCollections: [newCollection] 
+      }, () => {
+        alert(`Created new collection "${newCollectionName}" and saved prompt.`);
+        loadCollections();
+        loadBufferItems();
+      });
       return;
     }
     
     // Create a simple dialog to select a collection
     const collectionNames = collections.map(c => c.name);
-    const selectedName = prompt('Select a collection to save to:\n' + collectionNames.join('\n'));
+    const selectedName = prompt('Select or enter a collection name to save to:\n' + collectionNames.join('\n'));
     
-    if (!selectedName) return;
+    if (!selectedName) return; // User cancelled
     
-    // Find the selected collection
+    // Find the selected collection with exact case-sensitive match
     const collectionIndex = collections.findIndex(c => c.name === selectedName);
+    
     if (collectionIndex === -1) {
-      alert('Collection not found.');
+      // Collection not found - create new collection with this name
+      const createNew = confirm(`Collection "${selectedName}" doesn't exist. Create it?`);
+      
+      if (createNew) {
+        // Create new collection
+        const newCollection = {
+          name: selectedName,
+          created: Date.now(),
+          updated: Date.now(),
+          prompts: [{
+            text: text,
+            added: Date.now()
+          }]
+        };
+        
+        // Add to existing collections
+        collections.push(newCollection);
+        
+        // Save updated collections
+        chrome.storage.local.set({ 
+          promptCollections: collections 
+        }, () => {
+          alert(`Created new collection "${selectedName}" and saved prompt.`);
+          loadCollections();
+          loadBufferItems();
+        });
+      }
       return;
     }
     
-    // Add prompt to collection
+    // Add prompt to existing collection
     collections[collectionIndex].prompts.push({
       text: text,
       added: Date.now()
