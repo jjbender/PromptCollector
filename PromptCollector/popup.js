@@ -638,6 +638,7 @@ const updateActiveCollectionUI = (activeIndex) => {
   });
 };
 
+// Автор Николай Третьяков
 
 const createCollectionItem = (collection, index) => {
   const item = document.createElement('div');

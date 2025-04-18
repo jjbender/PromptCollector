@@ -160,7 +160,7 @@
     gap: 10px;
   }
   
-  .section-header .collections-header h2 {
+  .section-header, .collections-header h2 {
     margin: 0;
     display: flex;
     align-items: center;
@@ -271,8 +271,8 @@ button:disabled,
 
 /* Toggle buttons */
 .toggle-button {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   display: flex;
   align-items: center;
@@ -295,10 +295,10 @@ button:disabled,
   transform: scale(1); 
 }
 
-/* Theme toggle */
+/* Theme toggle 
 .theme-toggle-button {
-  width: 30px;
-  height: 30px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background-color: var(--neutral-200);
   color: var(--neutral-700);
@@ -314,7 +314,8 @@ button:disabled,
   background-color: var(--neutral-300);
   transform: rotate(15deg); 
   border-radius: 50%; 
-}
+} */
+
 /* Tab buttons */
 
 
@@ -353,8 +354,8 @@ button:disabled,
   background-repeat: no-repeat;
   background-position: center;
   display: inline-block;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
 }
 
 #import-collection{
@@ -362,8 +363,8 @@ button:disabled,
   background-repeat: no-repeat;
   background-position: center;
   display: inline-block;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
 }
 
 /* Button rows */
@@ -828,7 +829,7 @@ textarea {
     border-color: var(--neutral-600);
   }
   
-  body.dark-mode .tabs {
+   body.dark-mode .tabs {
     background-color: var(--neutral-700);
     box-shadow: var(--shadow-md);
   }
@@ -846,7 +847,7 @@ textarea {
   body.dark-mode .tab-button:hover {
     background-color: var(--neutral-600);
     color: var(--neutral-50);
-  }
+  } 
 
   /* ==============================================
    13. RESPONSIVE DESIGN

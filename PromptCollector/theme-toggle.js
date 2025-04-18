@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const getCurrentTheme = () => {
     const stored = localStorage.getItem(THEME_KEY);
     if (stored === 'light' || stored === 'dark') return stored;
-    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'dark' : 'light';
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
   };
 
   const setTheme = (mode) => {
@@ -63,9 +63,9 @@ document.addEventListener('DOMContentLoaded', function () {
   button.addEventListener('click', () => toggleTheme(button));
 
   // Optional: react to system preference changes if no stored theme
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
     if (!localStorage.getItem(THEME_KEY)) {
-      const mode = e.matches ? 'dark' : 'light';
+      const mode = e.matches ? 'light' : 'dark';
       setTheme(mode);
       updateIcon(button, mode);
     }
