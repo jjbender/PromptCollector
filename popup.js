@@ -338,6 +338,81 @@ const copyToClipboard = (text, button) => {
   });
 };
 
+// Shortcut to save clipboard to active collection
+const clipboardToActiveCollection = () => {
+  // Get the button for status update
+  const clipboardToActiveButton = document.getElementById('clipboard-to-active');
+  const originalClassName = clipboardToActiveButton.className;
+  
+  // First check if there's an active collection
+  chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
+    const collections = data.promptCollections || [];
+    const activeIndex = data.activeCollectionIndex;
+    
+    // Check if there's an active collection
+    if (typeof activeIndex !== 'number' || !collections[activeIndex]) {
+      // Show temporary message in the button
+      clipboardToActiveButton.textContent = 'No active collection';
+      clipboardToActiveButton.className = originalClassName + ' error-state';
+      
+      setTimeout(() => {
+        clipboardToActiveButton.textContent = '';
+        clipboardToActiveButton.className = originalClassName;
+      }, 2000);
+      return;
+    }
+    
+    // Get text from clipboard
+    navigator.clipboard.readText()
+      .then(text => {
+        if (!text.trim()) {
+          // Show empty clipboard message
+          clipboardToActiveButton.textContent = 'Empty clipboard';
+          clipboardToActiveButton.className = originalClassName + ' error-state';
+          
+          setTimeout(() => {
+            clipboardToActiveButton.textContent = '';
+            clipboardToActiveButton.className = originalClassName;
+          }, 2000);
+          return;
+        }
+        
+        // Add prompt to active collection
+        collections[activeIndex].prompts.push({
+          text: text,
+          added: Date.now()
+        });
+        collections[activeIndex].updated = Date.now();
+        
+        // Save back to storage
+        chrome.storage.local.set({ promptCollections: collections }, () => {
+          // Show saved message
+          clipboardToActiveButton.textContent = 'Saved!';
+          clipboardToActiveButton.className = originalClassName + ' copied';
+          
+          setTimeout(() => {
+            clipboardToActiveButton.textContent = '';
+            clipboardToActiveButton.className = originalClassName;
+          }, 2000);
+          
+          loadCollections();
+          loadBufferItems();
+        });
+      })
+      .catch(err => {
+        console.error('Failed to read clipboard: ', err);
+        // Show error message
+        clipboardToActiveButton.textContent = 'Error';
+        clipboardToActiveButton.className = originalClassName + ' error-state';
+        
+        setTimeout(() => {
+          clipboardToActiveButton.textContent = '';
+          clipboardToActiveButton.className = originalClassName;
+        }, 2000);
+      });
+  });
+};
+
 // Delete a prompt from buffer
 const deletePrompt = (index) => {
   chrome.storage.local.get('promptBuffer', data => {
@@ -844,7 +919,7 @@ const exportCollection = (collection) => {
   const downloadAnchorNode = document.createElement('a');
   downloadAnchorNode.setAttribute("href", dataStr);
   downloadAnchorNode.setAttribute("download", collection.name + ".json");
-  document.body.appendChild(downloadAnchorNode); // Required for Firefox
+  document.body.appendChild(downloadAnchorNode); // Required for Firefox for future builds
   downloadAnchorNode.click();
   downloadAnchorNode.remove();
 };
@@ -935,6 +1010,9 @@ function setupEventListeners() {
     }
   });
   
+  // Add shortcut button
+  document.getElementById('clipboard-to-active').addEventListener('click', clipboardToActiveCollection);
+
   // Paste from clipboard button
   document.getElementById('paste-from-clipboard').addEventListener('click', function() {
     navigator.clipboard.readText().then(text => {

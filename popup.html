@@ -30,7 +30,10 @@
     <div id="buffer-content" class="tab-content active">
       <div class="section-header">
         <h2>Buffer<span id="buffer-count">(0/10)</span></h2>
+        <div class="button-row">
+        <button id="clipboard-to-active" class="toggle-button secondary" ></button>
         <button id="toggle-input" class="toggle-button" aria-label="Toggle input area">+</button>
+      </div>
       </div>
 
       <div id="prompt-input-container" class="input-area">
@@ -63,8 +66,8 @@
       <div class="collections-header">
         <h2>My Collections</h2>
         <div class="button-row">
-          <button id="create-collection" class="action-button">+</button>
-          <button id="import-collection" class="action-button secondary">Import</button>
+          <button id="create-collection" class="toggle-button">+</button>
+          <button id="import-collection" class="toggle-button secondary"></button>
         </div>
       </div>
 
