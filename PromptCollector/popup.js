@@ -1,3 +1,60 @@
+// Structure scripts:
+// CONSTANTS
+// Any constants or configuration values
+
+// INITIALIZATION
+// Functions that run when the extension loads
+// - initTabs()
+// - setupEventListeners()
+// - DOMContentLoaded handler
+
+// UI MANIPULATION
+// Functions that handle UI changes
+// - toggleActiveCollectionEditMode()
+// - updateActiveCollectionUI()
+// - displaySearchResults()
+
+// ELEMENT CREATORS
+// Functions that create DOM elements
+// - createPromptItemElement()
+// - createCollectionItem()
+
+// DATA LOADERS
+// Functions that load data from storage
+// - loadBufferItems()
+// - loadCollections()
+// - performSearch()
+
+// DATA MODIFIERS
+// Functions that modify stored data
+// - saveToBuffer()
+// - saveToCollection()
+// - editPrompt()
+// - editCollectionPrompt()
+// - deletePrompt()
+// - deleteCollectionPrompt()
+// - renameCollection()
+// - createNewCollection()
+// - makeCollectionActive()
+// - deleteCollection()
+
+// CLIPBOARD OPERATIONS
+// Functions that deal with clipboard
+// - copyToClipboard()
+// - clipboardToActiveCollection()
+
+// IMPORT/EXPORT
+// Functions for importing/exporting collections
+// - exportCollection()
+// - importCollection() (not implemented yet)
+
+// UTILITIES
+// Helper functions
+// - safeStorageOperation()
+
+
+
+
 
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize the extension
