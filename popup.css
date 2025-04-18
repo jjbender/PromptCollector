@@ -79,7 +79,8 @@
     background-color: var(--neutral-50);
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
-    min-width: 350px;
+    min-width: 400px;
+    max-width: 500px;
     display: flex;
     flex-direction: column;
   }
@@ -159,11 +160,12 @@
     gap: 10px;
   }
   
-  .section-header h2 {
+  .section-header .collections-header h2 {
     margin: 0;
     display: flex;
     align-items: center;
     gap: 6px;
+    padding-left: 5px;
   }
 
   .section-header .button-row {
@@ -314,6 +316,8 @@ button:disabled,
   border-radius: 50%; 
 }
 /* Tab buttons */
+
+
 .tab-button:hover {
   background-color: var(--primary-transparent-hover);
   transform: translateY(-1px);
@@ -321,7 +325,8 @@ button:disabled,
 
 .tab-button.active {
   color: white;
-  background-color: var(--primary);
+  background-color: var(--primary) !important;
+  
 }
 
 .tab-button.icon-tab {
@@ -334,6 +339,7 @@ button:disabled,
 
 #buffer-tab {
   background-image: var(--icon-pencil);
+  background-color: white;
   background-repeat: no-repeat;
 }
 
@@ -478,8 +484,8 @@ textarea {
   display: flex;
   width: 100%;
   align-items: center;
-  gap: 12px;
-  justify-content: space-between;
+  gap: 10px;
+  justify-content: flex-center;
   padding: 5px;
 }
 
@@ -519,13 +525,17 @@ textarea {
 
    .search-header {
     flex: 0 0 auto;
-    width: auto;
+    width: 75%;
     display: flex;
     margin: 0;
     max-width: none;
     gap: 12px;
     justify-content: flex-end;
   }
+
+  /*#search-results .prompt-list {
+    display:none;
+  } */
   
   #search-input {
     width: 100%;
@@ -549,6 +559,9 @@ textarea {
     appearance: none;
   }
   
+  #search-results {
+    display: none; /* Hidden by default */
+  }
 
 /* ==============================================
    9. PROMPTS & COLLECTIONS

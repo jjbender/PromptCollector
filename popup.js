@@ -665,15 +665,20 @@ const createCollectionItem = (collection, index) => {
   renameBtn.addEventListener('click', () => renameCollection(index));
   actions.appendChild(renameBtn);
 
-  const exportBtn = document.createElement('button');
-  exportBtn.textContent = 'Export';
-  exportBtn.addEventListener('click', () => exportCollection(collection));
+  const exportBtnTXT = document.createElement('button');
+  exportBtnTXT.textContent = 'to .txt';
+  exportBtnTXT.addEventListener('click', () => exportCollection(collection, 'txt'));
+
+  const exportBtnJSON = document.createElement('button');
+  exportBtnJSON.textContent = 'to .json';
+  exportBtnJSON.addEventListener('click', () => exportCollection(collection, 'json'));
   
   const deleteBtn = document.createElement('button');
   deleteBtn.textContent = 'Delete';
   deleteBtn.addEventListener('click', () => deleteCollection(index));
   
-  actions.appendChild(exportBtn);
+  actions.appendChild(exportBtnTXT);
+  actions.appendChild(exportBtnJSON);
   actions.appendChild(deleteBtn);
   
   item.appendChild(name);
@@ -833,97 +838,30 @@ const deleteCollectionPrompt = (collectionIndex, promptIndex) => {
 };
 
 // Import collection from JSON file
-const importCollection = () => {
-  // Create a hidden file input element
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = '.json';
-  fileInput.style.display = 'none';
-  document.body.appendChild(fileInput);
-  
-  // Trigger the file selection dialog
-  fileInput.click();
-  
-  // Handle file selection
-  fileInput.addEventListener('change', function() {
-    if (fileInput.files.length === 0) {
-      document.body.removeChild(fileInput);
-      return;
-    }
-    
-    const file = fileInput.files[0];
-    const reader = new FileReader();
-    
-    reader.onload = (event) => {
-      try {
-        const collection = JSON.parse(event.target.result);
-        
-        // Validate the collection structure
-        if (!collection.name || !Array.isArray(collection.prompts)) {
-          alert('Invalid collection format. Collection must have a name and prompts array.');
-          document.body.removeChild(fileInput);
-          return;
-        }
-        
-        // Add timestamps if they don't exist
-        if (!collection.created) {
-          collection.created = Date.now();
-        }
-        if (!collection.updated) {
-          collection.updated = Date.now();
-        }
-        
-        // Save the imported collection
-        chrome.storage.local.get('promptCollections', data => {
-          let collections = data.promptCollections || [];
-          
-          // Check if a collection with the same name already exists
-          const existingCollectionIndex = collections.findIndex(c => c.name === collection.name);
-          
-          if (existingCollectionIndex !== -1) {
-            const overwrite = confirm(`A collection named "${collection.name}" already exists. Overwrite it?`);
-            
-            if (overwrite) {
-              collections[existingCollectionIndex] = collection;
-            } else {
-              // Ask for a new name
-              const newName = prompt('Enter a new name for the imported collection:');
-              if (!newName) {
-                document.body.removeChild(fileInput);
-                return;
-              }
-              collection.name = newName;
-              collections.push(collection);
-            }
-          } else {
-            collections.push(collection);
-          }
-          
-          chrome.storage.local.set({ promptCollections: collections }, () => {
-            alert(`Collection "${collection.name}" imported successfully with ${collection.prompts.length} prompts.`);
-            loadCollections();
-            document.body.removeChild(fileInput);
-          });
-        });
-      } catch (error) {
-        alert('Error importing collection: ' + error.message);
-        document.body.removeChild(fileInput);
-      }
-    };
-    
-    reader.readAsText(file);
-  });
-};
-
-// Export collection to JSON
-const exportCollection = (collection) => {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(collection));
-  const downloadAnchorNode = document.createElement('a');
-  downloadAnchorNode.setAttribute("href", dataStr);
-  downloadAnchorNode.setAttribute("download", collection.name + ".json");
-  document.body.appendChild(downloadAnchorNode); // Required for Firefox for future builds
-  downloadAnchorNode.click();
-  downloadAnchorNode.remove();
+const exportCollection = (collection, type) => {
+  if (type === 'json') {
+    // Export as JSON
+    const jsonDataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(collection));
+    const jsonDownloadAnchorNode = document.createElement('a');
+    jsonDownloadAnchorNode.setAttribute("href", jsonDataStr);
+    jsonDownloadAnchorNode.setAttribute("download", collection.name + ".json");
+    document.body.appendChild(jsonDownloadAnchorNode); // Required for Firefox
+    jsonDownloadAnchorNode.click();
+    jsonDownloadAnchorNode.remove();
+  } else if (type === 'txt') {
+    // Export as TXT
+    const txtData = [collection.name, ...collection.prompts.map(prompt => 
+      typeof prompt === 'string' ? prompt : prompt.text)].join('\n');
+    const txtDataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(txtData);
+    const txtDownloadAnchorNode = document.createElement('a');
+    txtDownloadAnchorNode.setAttribute("href", txtDataStr);
+    txtDownloadAnchorNode.setAttribute("download", collection.name + ".txt");
+    document.body.appendChild(txtDownloadAnchorNode); // Required for Firefox
+    txtDownloadAnchorNode.click();
+    txtDownloadAnchorNode.remove();
+  } else {
+    console.error('Unsupported export type:', type);
+  }
 };
 
 // Delete collection
@@ -971,6 +909,12 @@ function setupEventListeners() {
   
       // JS-powered external help URL
     document.getElementById('help-link').addEventListener('click', function(event) {
+      event.preventDefault(); // Prevent the default anchor behavior
+      const helpUrl = "https://balsam-copper-ded.notion.site/Prompt-Collector-1d6537cd5c7980f888a3d7a02b3d8205";
+      chrome.tabs.create({ url: helpUrl });
+    });
+
+    document.getElementById('prompt-link').addEventListener('click', function(event) {
       event.preventDefault(); // Prevent the default anchor behavior
       const helpUrl = "https://balsam-copper-ded.notion.site/Prompt-Collector-1d6537cd5c7980f888a3d7a02b3d8205";
       chrome.tabs.create({ url: helpUrl });
@@ -1041,10 +985,9 @@ function setupEventListeners() {
   // Search functionality
   document.getElementById('search-input').addEventListener('input', function() {
     const searchTerm = this.value.toLowerCase();
-    const searchScope = document.getElementById('search-scope').value;
-    
+        
     if (searchTerm) {
-      performSearch(searchTerm, searchScope);
+      performSearch(searchTerm);
     } else {
       document.getElementById('search-results').innerHTML = 
         '<div class="empty-message">Enter search terms above</div>';
@@ -1099,58 +1042,57 @@ function createNewCollection(name) {
 
 
 
-// Perform search
-const performSearch = (term, scope) => {
+
+const performSearch = (term) => {
   const resultsContainer = document.getElementById('search-results');
   resultsContainer.innerHTML = '<div class="empty-message">Searching...</div>';
-  
-  // Search in buffer and collections
+
   chrome.storage.local.get(['promptBuffer', 'promptCollections'], function(data) {
     let results = [];
-    
+
     // Search in buffer
     const buffer = data.promptBuffer || [];
-    const bufferResults = buffer.filter(item => 
-      item.toLowerCase().includes(term.toLowerCase())  // Case-insensitive search
+    const bufferResults = buffer.filter(item =>
+      item.toLowerCase().includes(term.toLowerCase()) // Case-insensitive search
     ).map(item => ({ text: item, source: 'Buffer' }));
-    
+
     results = results.concat(bufferResults);
-    
+
     // Search in collections
     if (data.promptCollections) {
       data.promptCollections.forEach(collection => {
         const collectionResults = collection.prompts
           .filter(item => {
-            // Handle both string and object formats for prompts
             const promptText = typeof item === 'string' ? item : item.text;
             return promptText.toLowerCase().includes(term.toLowerCase());
           })
-          .map(item => ({ 
-            text: typeof item === 'string' ? item : item.text, 
-            source: `Collection: ${collection.name}` 
+          .map(item => ({
+            text: typeof item === 'string' ? item : item.text,
+            source: `Collection: ${collection.name}`
           }));
-        
+
         results = results.concat(collectionResults);
       });
     }
-    
+    // Display results
     displaySearchResults(results);
   });
-}
+};
 
 // Display search results using the unified item creation function
-function displaySearchResults(results) {
+const displaySearchResults = (results) => {
   const resultsContainer = document.getElementById('search-results');
   
   if (results.length === 0) {
-    // To show the search results
-    resultsContainer.style.display = 'block';
-    resultsContainer.innerHTML = '<div class="empty-message">No matching prompts found</div>';
+    // Hide the results container if no results
+    resultsContainer.style.display = 'none';
     return;
   }
-  
-  resultsContainer.innerHTML = '';
-  
+
+  // Show the results container and populate it
+  resultsContainer.style.display = 'block';
+  resultsContainer.innerHTML = ''; // Clear previous results
+
   results.forEach(item => {
     const resultItem = createPromptItemElement(item.text, {
       source: item.source,
