@@ -845,14 +845,13 @@ function handleDragEnd(e) {
 
 const saveToCollection = (text) => {
   chrome.storage.local.get('promptCollections', data => {
-    const collections = data.promptCollections || [];
-    
+    let collections = data.promptCollections || [];
+
+    // If no collections exist, prompt to create one
     if (collections.length === 0) {
-      // No collections exist yet, create one
       const newCollectionName = prompt('No collections exist yet. Enter a name for your new collection:');
-      if (!newCollectionName) return; // User cancelled
-      
-      // Create new collection
+      if (!newCollectionName) return;
+
       const newCollection = {
         name: newCollectionName,
         created: Date.now(),
@@ -862,66 +861,65 @@ const saveToCollection = (text) => {
           added: Date.now()
         }]
       };
-      
-      // Save new collection
-      chrome.storage.local.set({ 
-        promptCollections: [newCollection] 
+
+      chrome.storage.local.set({
+        promptCollections: [newCollection],
+        activeCollectionIndex: 0,
+        collectionToggleState: true
       }, () => {
         alert(`Created new collection "${newCollectionName}" and saved prompt.`);
         loadCollections();
         loadBufferItems();
       });
+
       return;
     }
-    
-    // Create a simple dialog to select a collection
+
+    // Prompt to select or enter a collection name
     const collectionNames = collections.map(c => c.name);
-    const selectedName = prompt('Select or enter a collection name to save to:\n' + collectionNames.join('\n'));
-    
-    if (!selectedName) return; // User cancelled
-    
-    // Find the selected collection with exact case-sensitive match
+    const selectedName = prompt('Type new collection name or copy one of existing collection names:\n' + collectionNames.join('\n'));
+    if (!selectedName) return;
+
     const collectionIndex = collections.findIndex(c => c.name === selectedName);
-    
+
+    // Create a new collection if name not found
     if (collectionIndex === -1) {
-      // Collection not found - create new collection with this name
       const createNew = confirm(`Collection "${selectedName}" doesn't exist. Create it?`);
-      
-      if (createNew) {
-        // Create new collection
-        const newCollection = {
-          name: selectedName,
-          created: Date.now(),
-          updated: Date.now(),
-          prompts: [{
-            text: text,
-            added: Date.now()
-          }]
-        };
-        
-        // Add to existing collections
-        collections.push(newCollection);
-        
-        // Save updated collections
-        chrome.storage.local.set({ 
-          promptCollections: collections 
-        }, () => {
-          alert(`Created new collection "${selectedName}" and saved prompt.`);
-          loadCollections();
-          loadBufferItems();
-        });
-      }
+      if (!createNew) return;
+
+      const newCollection = {
+        name: selectedName,
+        created: Date.now(),
+        updated: Date.now(),
+        prompts: [{
+          text: text,
+          added: Date.now()
+        }]
+      };
+
+      collections.push(newCollection);
+      const newIndex = collections.length - 1;
+
+      chrome.storage.local.set({
+        promptCollections: collections,
+        activeCollectionIndex: newIndex,
+        collectionToggleState: true
+      }, () => {
+        alert(`Created new collection "${selectedName}" and saved prompt.`);
+        loadBufferItems();
+        loadCollections();
+      });
+
       return;
     }
-    
-    // Add prompt to existing collection
+
+    // If collection exists, just add to it
     collections[collectionIndex].prompts.push({
       text: text,
       added: Date.now()
     });
     collections[collectionIndex].updated = Date.now();
-    
-    // Save back to storage
+
     chrome.storage.local.set({ promptCollections: collections }, () => {
       alert(`Prompt saved to "${selectedName}" collection.`);
       loadCollections();
