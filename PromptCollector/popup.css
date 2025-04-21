@@ -560,8 +560,24 @@ textarea {
     appearance: none;
   }
   
+  /*
   #search-results {
-    display: none; /* Hidden by default */
+    display: none; }/* Hidden by default */
+  
+  #search-results {
+    opacity: 0;
+    transform: translateY(12px);
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1), transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+  
+  
+  #search-results.show {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+    pointer-events: auto;
   }
 
 /* ==============================================

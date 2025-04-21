@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "PromptKeeper",
+  "name": "PromptCollector",
   "version": "1.0.0",
-  "description": "Clipboard and storage dedicated to commonly used prompts for quick access through any LLM agents",
+  "description": "Save your prompts locally and organize them into collections",
   "permissions": [
     "storage",
     "clipboardRead",
