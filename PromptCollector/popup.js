@@ -71,6 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // Let active collections be not in edit mode in the start
 let activeCollectionEditMode = false;
 
+
+
 // Tab functionality
 const initTabs = () => {
   const tabs = document.querySelectorAll('.tab-button');
@@ -105,6 +107,20 @@ const loadBufferItems = () => {
     bufferList.innerHTML = '';
     bufferCount.textContent = `(${buffer.length}/10)`;
     // Create a buffer heading with toggle functionality
+
+    const introMessage = document.getElementById('intro-message');
+    if (introMessage) {
+      const hasBufferItems = buffer.length > 0;
+      const hasActivePrompts = typeof activeIndex === 'number' && collections[activeIndex]?.prompts.length > 0;
+    
+      // Hide the message if there's anything saved
+      if (hasBufferItems || hasActivePrompts) {
+        introMessage.style.display = 'none';
+      } else {
+        introMessage.style.display = 'block';
+      }
+    }
+
     if (buffer.length > 0) {
       const heading = document.createElement('h2');
       heading.style.cursor = 'pointer';
@@ -174,8 +190,8 @@ const loadBufferItems = () => {
       caret.textContent = collectionToggleState ? '▼' : '►';
       caret.style.fontSize = '0.75rem';
       const headingText = document.createElement('span');
-      headingText.textContent = `${activeCollection.name}`;
-      
+      headingText.textContent = `${activeCollection.name} (${activeCollection.prompts.length})`;
+
       // Add Edit/Done button for the collection
       const editBtn = document.createElement('button');
       editBtn.className = 'toggle-button';
@@ -286,6 +302,7 @@ const loadBufferItems = () => {
       bufferList.appendChild(collectionContainer);
     } 
   });
+  
 };
 
 // Function to edit a prompt within a collection
@@ -452,13 +469,7 @@ const clipboardToActiveCollection = () => {
     // Check if there's an active collection
     if (typeof activeIndex !== 'number' || !collections[activeIndex]) {
       // Show temporary message in the button
-      clipboardToActiveButton.textContent = 'No active collection';
-      clipboardToActiveButton.className = originalClassName + ' error-state';
-      
-      setTimeout(() => {
-        clipboardToActiveButton.textContent = '';
-        clipboardToActiveButton.className = originalClassName;
-      }, 2000);
+      alert('No active collection selected. Please create or activate a collection first.');
       return;
     }
     
@@ -715,6 +726,118 @@ const editPrompt = (index) => {
   });
 };
 
+
+const makePromptItemsDraggable = () => {
+  const promptItems = document.querySelectorAll('.collection-container .prompt-item');
+  
+  promptItems.forEach((item, index) => {
+    // Add draggable attribute
+    item.setAttribute('draggable', 'true');
+    item.dataset.index = index; // Store the original index
+    
+    // Add a visual drag handle
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'drag-handle';
+    dragHandle.innerHTML = '☰'; // Unicode hamburger icon
+    dragHandle.style.cursor = 'grab';
+    dragHandle.style.marginRight = '8px';
+    
+    // Insert drag handle as first child
+    item.insertBefore(dragHandle, item.firstChild);
+    
+    // Add drag event listeners
+    item.addEventListener('dragstart', handleDragStart);
+    item.addEventListener('dragover', handleDragOver);
+    item.addEventListener('dragenter', handleDragEnter);
+    item.addEventListener('dragleave', handleDragLeave);
+    item.addEventListener('drop', handleDrop);
+    item.addEventListener('dragend', handleDragEnd);
+  });
+};
+
+// Drag event handlers
+let draggedItem = null;
+let dragSource = null;
+
+function handleDragStart(e) {
+  draggedItem = this;
+  dragSource = parseInt(this.dataset.index);
+  
+  // Set data for drag operation (required for Firefox)
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/html', this.innerHTML);
+  
+  // Add styling to show item is being dragged
+  this.classList.add('dragging');
+}
+
+function handleDragOver(e) {
+  e.preventDefault(); // Allow drop
+  e.dataTransfer.dropEffect = 'move';
+  return false;
+}
+
+function handleDragEnter(e) {
+  this.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+  this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+  e.stopPropagation(); // Stop browser from redirecting
+  
+  // Only process drop if we're not dropping onto the same item
+  if (draggedItem !== this) {
+    const dragTarget = parseInt(this.dataset.index);
+    
+    // Update the collection's prompt order
+    chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
+      const collections = data.promptCollections || [];
+      const activeIndex = data.activeCollectionIndex;
+      
+      if (typeof activeIndex === 'number' && collections[activeIndex]) {
+        // Get the collection's prompts
+        const prompts = collections[activeIndex].prompts;
+        
+        // Remove the dragged item from its original position
+        const draggedPrompt = prompts.splice(dragSource, 1)[0];
+        
+        // Insert at the new position
+        prompts.splice(dragTarget, 0, draggedPrompt);
+        
+        // Update the collection's "updated" timestamp
+        collections[activeIndex].updated = Date.now();
+        
+        // Save back to storage
+        chrome.storage.local.set({ promptCollections: collections }, () => {
+          loadBufferItems(); // Refresh the display
+        });
+      }
+    });
+  }
+  
+  this.classList.remove('drag-over');
+  return false;
+}
+
+function handleDragEnd(e) {
+  // Remove styling
+  this.classList.remove('dragging');
+  
+  // Reset drag state
+  draggedItem = null;
+  dragSource = null;
+  
+  // Remove drag-over class from all items
+  const items = document.querySelectorAll('.collection-container .prompt-item');
+  items.forEach(item => {
+    item.classList.remove('drag-over');
+  });
+}
+
+
 //////////////////////////
 // COLLECTION FUNCTIONS //
 /////////////////////////
@@ -849,6 +972,10 @@ const toggleActiveCollectionEditMode = () => {
   }
   
   loadBufferItems(); // Reload the buffer display with edit controls
+
+  if (activeCollectionEditMode) {
+    setTimeout(makePromptItemsDraggable, 100);
+  }
 };
 
 const updateActiveCollectionUI = (activeIndex) => {

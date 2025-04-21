@@ -924,3 +924,34 @@ textarea {
     }
   }
  */ 
+
+/* ==============================================
+   14. Draf and Drop Styles
+   ============================================== */
+
+ /* Drag and drop styles */
+.drag-handle {
+  cursor: grab;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.drag-handle:hover {
+  opacity: 1;
+}
+
+.prompt-item.dragging {
+  opacity: 0.5;
+  background-color: #f0f0f0;
+}
+
+.prompt-item.drag-over {
+  border-top: 2px solid #4a90e2;
+}
+
+.prompt-item[draggable="true"] {
+  cursor: move;
+  padding-left: 8px;
+  display: flex;
+  align-items: center;
+}
