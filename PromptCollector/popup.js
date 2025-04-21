@@ -608,39 +608,112 @@ const editPrompt = (index) => {
 
     const text = buffer[actualIndex];
     const promptInput = document.getElementById('prompt-input');
+    const originalValue = promptInput.value; // Store original input value
+    
+    // Show input area if it's hidden
+    const inputContainer = document.getElementById('prompt-input-container');
+    const toggleButton = document.getElementById('toggle-input');
+    const wasHidden = inputContainer.style.display !== 'block';
+    
+    if (wasHidden) {
+      inputContainer.style.display = 'block';
+      toggleButton.textContent = '−';
+    }
+    
+    // Set input value to the prompt being edited
     promptInput.value = text;
     promptInput.focus();
-
-    // Remove old entry
-    buffer.splice(actualIndex, 1);
-
-    // Save updated buffer without the old item
-    chrome.storage.local.set({ promptBuffer: buffer }, () => {
-      loadBufferItems();
-    });
-
-    // Define helper function inside
-    const completeEdit = (newText) => {
-      chrome.storage.local.get('promptBuffer', data => {
-        let buffer = data.promptBuffer || [];
-        buffer.push(newText); // Add updated text to buffer
-        chrome.storage.local.set({ promptBuffer: buffer }, () => {
-          loadBufferItems();
+    
+    // Create temporary edit controls
+    const editControls = document.createElement('div');
+    editControls.id = 'edit-controls';
+    
+    const saveButton = document.createElement('button');
+    saveButton.textContent = 'Save Changes';
+    saveButton.className = 'action-button';
+    
+    const cancelButton = document.createElement('button');
+    cancelButton.className = 'action-button secondary';
+    cancelButton.textContent = 'Cancel edit';
+    
+    editControls.appendChild(cancelButton);
+    editControls.appendChild(saveButton);
+    
+    
+    const pasteButton = document.getElementById('paste-from-clipboard');
+    pasteButton.insertAdjacentElement('afterend', editControls);
+    
+    // Define cleanup function
+    const cleanup = (restore = false) => {
+      // Remove temp controls
+      if (document.getElementById('edit-controls')) {
+        document.getElementById('edit-controls').remove();
+      }
+      
+      // Reset input if canceling
+      if (restore) {
+        promptInput.value = originalValue;
+      }
+      
+      // Return to previous input visibility state
+      if (wasHidden) {
+        inputContainer.style.display = 'none';
+        toggleButton.textContent = '+';
+      }
+      
+      // Remove key listener
+      promptInput.onkeydown = null;
+    };
+    
+    // Function to save changes
+    const saveChanges = () => {
+      const newText = promptInput.value.trim();
+      
+      if (!newText) {
+        alert('Prompt cannot be empty.');
+        return;
+      }
+      
+      // Remove the prompt being edited
+      buffer.splice(actualIndex, 1);
+      
+      // Save buffer without this item
+      chrome.storage.local.set({ promptBuffer: buffer }, () => {
+        // Add the new version
+        chrome.storage.local.get('promptBuffer', data => {
+          let updatedBuffer = data.promptBuffer || [];
+          updatedBuffer.push(newText);
+          
+          chrome.storage.local.set({ promptBuffer: updatedBuffer }, () => {
+            cleanup();
+            loadBufferItems(); // Refresh display
+          });
         });
       });
-
-      promptInput.value = '';
     };
-
+    
+    // Save button handler
+    saveButton.addEventListener('click', saveChanges);
+    
+    // Cancel button handler
+    cancelButton.addEventListener('click', () => {
+      // Just restore original state
+      cleanup(true);
+      
+      // Re-add the item we removed (nothing changed)
+      loadBufferItems();
+    });
+    
     // Listen for Enter key
     promptInput.onkeydown = (e) => {
       if (e.key === 'Enter') {
-        completeEdit(promptInput.value);
+        saveChanges();
+      } else if (e.key === 'Escape') {
+        cancelButton.click(); // Trigger cancel
       }
     };
   });
 };
-
 
 //////////////////////////
 // COLLECTION FUNCTIONS //

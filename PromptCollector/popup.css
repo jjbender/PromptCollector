@@ -206,10 +206,11 @@
    ============================================== */
 
    button, .action-button {
-    padding: 10px 16px;
+    padding: 8px 14px;
     background-color: var(--primary);
     color: white;
     border: none;
+    font-size:14px;
     border-radius: var(--border-radius-full); 
     font-weight: 500;
     cursor: pointer;
