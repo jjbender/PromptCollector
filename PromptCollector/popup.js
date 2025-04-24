@@ -1,6 +1,7 @@
 // Initialize the extension 
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize the extension
+  initializeDefaultsIfFirstTime();
   initTabs();
   loadBufferItems();
   loadCollections();
@@ -302,7 +303,7 @@ actions.appendChild(copyDoneBtn);
   // Delete button
   if (collectionIndex !== null && promptIndex !== null) {
     const deleteBtn = document.createElement('button');
-    deleteBtn.textContent = 'Delete from Collection';
+    deleteBtn.textContent = 'Delete';
     deleteBtn.addEventListener('click', () => {
       deleteCollectionPrompt(collectionIndex, promptIndex);
     });
@@ -607,7 +608,7 @@ const createPromptItemElement = (text, options = {}) => {
 
   if (includeDeleteFromCollection && collectionIndex !== null && index !== null) {
     const deleteFromCollectionBtn = document.createElement('button');
-    deleteFromCollectionBtn.textContent = 'Delete from Collection';
+    deleteFromCollectionBtn.textContent = 'Delete';
     deleteFromCollectionBtn.addEventListener('click', () => {
       deleteCollectionPrompt(collectionIndex, index); 
     });
@@ -687,7 +688,7 @@ const copyToClipboard = (text, button) => {
       button.classList.add('copied');
       
       setTimeout(() => {
-        button.textContent = 'Copy to clipboard';
+        button.textContent = 'Copy';
         button.classList.remove('copied');
       }, 2000);
     }
@@ -991,117 +992,6 @@ const editPrompt = (index) => {
 };
 
 
-const makePromptItemsDraggable = () => {
-  const promptItems = document.querySelectorAll('.collection-container .prompt-item');
-  
-  promptItems.forEach((item, index) => {
-    // Add draggable attribute
-    item.setAttribute('draggable', 'true');
-    item.dataset.index = index; // Store the original index
-    
-    // Add a visual drag handle
-    const dragHandle = document.createElement('div');
-    dragHandle.className = 'drag-handle';
-    dragHandle.innerHTML = '☰'; // Unicode hamburger icon
-    dragHandle.style.cursor = 'grab';
-    dragHandle.style.marginRight = '8px';
-    
-    // Insert drag handle as first child
-    item.insertBefore(dragHandle, item.firstChild);
-    
-    // Add drag event listeners
-    item.addEventListener('dragstart', handleDragStart);
-    item.addEventListener('dragover', handleDragOver);
-    item.addEventListener('dragenter', handleDragEnter);
-    item.addEventListener('dragleave', handleDragLeave);
-    item.addEventListener('drop', handleDrop);
-    item.addEventListener('dragend', handleDragEnd);
-  });
-};
-
-// Drag event handlers
-let draggedItem = null;
-let dragSource = null;
-
-function handleDragStart(e) {
-  draggedItem = this;
-  dragSource = parseInt(this.dataset.index);
-  
-  // Set data for drag operation (required for Firefox)
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/html', this.innerHTML);
-  
-  // Add styling to show item is being dragged
-  this.classList.add('dragging');
-}
-
-function handleDragOver(e) {
-  e.preventDefault(); // Allow drop
-  e.dataTransfer.dropEffect = 'move';
-  return false;
-}
-
-function handleDragEnter(e) {
-  this.classList.add('drag-over');
-}
-
-function handleDragLeave(e) {
-  this.classList.remove('drag-over');
-}
-
-function handleDrop(e) {
-  e.stopPropagation(); // Stop browser from redirecting
-  
-  // Only process drop if we're not dropping onto the same item
-  if (draggedItem !== this) {
-    const dragTarget = parseInt(this.dataset.index);
-    
-    // Update the collection's prompt order
-    chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
-      const collections = data.promptCollections || [];
-      const activeIndex = data.activeCollectionIndex;
-      
-      if (typeof activeIndex === 'number' && collections[activeIndex]) {
-        // Get the collection's prompts
-        const prompts = collections[activeIndex].prompts;
-        
-        // Remove the dragged item from its original position
-        const draggedPrompt = prompts.splice(dragSource, 1)[0];
-        
-        // Insert at the new position
-        prompts.splice(dragTarget, 0, draggedPrompt);
-        
-        // Update the collection's "updated" timestamp
-        collections[activeIndex].updated = Date.now();
-        
-        // Save back to storage
-        chrome.storage.local.set({ promptCollections: collections }, () => {
-          loadBufferItems(); // Refresh the display
-        });
-      }
-    });
-  }
-  
-  this.classList.remove('drag-over');
-  return false;
-}
-
-function handleDragEnd(e) {
-  // Remove styling
-  this.classList.remove('dragging');
-  
-  // Reset drag state
-  draggedItem = null;
-  dragSource = null;
-  
-  // Remove drag-over class from all items
-  const items = document.querySelectorAll('.collection-container .prompt-item');
-  items.forEach(item => {
-    item.classList.remove('drag-over');
-  });
-}
-
-
 //////////////////////////
 // COLLECTION FUNCTIONS //
 /////////////////////////
@@ -1368,74 +1258,6 @@ const renameCollection = (index) => {
   });
 };
 
-
-const viewCollection = (index) => {
-  chrome.storage.local.get('promptCollections', data => {
-    const collections = data.promptCollections || [];
-    if (!collections[index]) return;
-
-    const collection = collections[index];
-
-    // Create dialog
-    const dialog = document.createElement('div');
-    dialog.className = 'collection-dialog';
-    dialog.innerHTML = `
-      <div class="dialog-header">
-        <h3>${collection.name}</h3>
-        <button id="close-dialog">×</button>
-      </div>
-      <div class="dialog-content" id="collection-prompts"></div>
-    `;
-
-    document.body.appendChild(dialog);
-
-    const promptsContainer = document.getElementById('collection-prompts');
-
-    const renderPrompts = () => {
-      promptsContainer.innerHTML = ''; // Clear existing content
-
-      if (collection.prompts.length === 0) {
-        promptsContainer.innerHTML = '<div class="empty-message">No prompts in this collection</div>';
-        return;
-      }
-
-      collection.prompts.forEach((prompt, promptIndex) => {
-        const promptElement = createPromptItemElement(
-          typeof prompt === 'string' ? prompt : prompt.text, 
-          {
-            includeSaveToCollection: false,
-            includeEdit: false,
-            includeDelete: true,
-            includeCopyAll: true,
-            includeResetButton: true,
-          }
-        );
-
-        const deleteBtn = promptElement.querySelector('button:nth-child(2)');
-        if (deleteBtn) {
-          const newDeleteBtn = deleteBtn.cloneNode(true); // Remove any old listeners
-          deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
-
-          newDeleteBtn.addEventListener('click', () => {
-            collection.prompts.splice(promptIndex, 1);
-            chrome.storage.local.set({ promptCollections: collections }, () => {
-              renderPrompts(); // Re-render everything
-            });
-          });
-        }
-
-        promptsContainer.appendChild(promptElement);
-      });
-    };
-
-    renderPrompts();
-
-    document.getElementById('close-dialog').addEventListener('click', () => {
-      dialog.remove();
-    });
-  });
-};
-
 const makeCollectionActive = (index) => {
   // Reset edit mode
   activeCollectionEditMode = false;
@@ -1480,7 +1302,7 @@ function importCollection() {
         
         // Validate the collection structure
         if (!collection.name || !Array.isArray(collection.prompts)) {
-          alert('Invalid collection format. Collection must have a name and prompts array.');
+          alert('Invalid collection format. Collection must have a name and prompts array. Create any collection in the extension first and export to .json to see the format.');
           document.body.removeChild(fileInput);
           return;
         }
@@ -1615,7 +1437,7 @@ function setupEventListeners() {
     document.getElementById('prompt-link').addEventListener('click', function(event) {
       event.preventDefault(); // Prevent the default anchor behavior
       const promptUrl = "https://balsam-copper-ded.notion.site/Prompt-Collections-1d9537cd5c7980339dc5dbbe14258ed2";
-      chrome.tabs.create({ url: promptpUrl });
+      chrome.tabs.create({ url: promptUrl });
     });
   
   // Save to buffer button for NEW PROMPT ONLY
@@ -1832,5 +1654,40 @@ function safeStorageOperation(operation, callback) {
     alert('An error occurred. Please try again.');
   }
 }
+
+function initializeDefaultsIfFirstTime() {
+  chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], (data) => {
+    const collections = data.promptCollections || [];
+    const activeIndex = data.activeCollectionIndex;
+
+    // If no collections exist, it's the first time
+    if (collections.length === 0 || typeof activeIndex !== 'number') {
+      const defaultCollection = {
+        name: 'First Prompt Collection',
+        created: Date.now(),
+        updated: Date.now(),
+        prompts: [
+          { text: "Explain [quantum physics] like I'm five years old.", added: Date.now() },
+          { text: "Give me a pros and cons list of [moving to Berlin, Germany].", added: Date.now() },
+          { text: "Make this email more professional: ['Hey, just checking if you got a chance to look at the thing I sent?]'", added: Date.now() },
+          { text: "Brainstorm YouTube video ideas about [personal finance for beginners].", added: Date.now() },
+          { text: "Summarize the following article in bullet points: [paste article here]", added: Date.now() }
+
+        ]
+      };
+
+      chrome.storage.local.set({
+        promptCollections: [defaultCollection],
+        activeCollectionIndex: 0,
+        collectionToggleState: true
+      }, () => {
+        console.log("Beginner collection created.");
+        loadCollections();    // Refresh UI
+        loadBufferItems();    // Refresh UI
+      });
+    }
+  });
+}
+
 
 //Created by Nikolay Tretyakov
