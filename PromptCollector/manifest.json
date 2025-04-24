@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "PromptCollector",
   "version": "1.0.0",
+  "homepage_url": "https://balsam-copper-ded.notion.site/Prompt-Collector-1d6537cd5c7980f888a3d7a02b3d8205",
   "description": "Save your prompts locally and organize them into collections",
   "permissions": [
     "storage",

@@ -241,7 +241,7 @@ collectionContainer.appendChild(resetContainer);
   
   // Copy & Done button (this is the new functionality)
   const copyDoneBtn = document.createElement('button');
-copyDoneBtn.textContent = 'Copy & Done';
+copyDoneBtn.textContent = 'Copy & hide';
 copyDoneBtn.addEventListener('click', () => {
   // Copy text to clipboard
   navigator.clipboard.writeText(promptText).then(() => {
@@ -387,7 +387,7 @@ const createCollectionHeading = (activeCollection, collectionToggleState, hasCom
 
     const tooltipText = document.createElement('span');
     tooltipText.className = 'tooltip-text'; // Use the existing tooltip-text class
-    tooltipText.textContent = 'Reset all prompts'; 
+    tooltipText.textContent = 'Show hidden prompts'; 
     resetButton.appendChild(tooltipText);
     
     resetButton.addEventListener('click', resetCollectionPrompts);

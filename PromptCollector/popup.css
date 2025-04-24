@@ -301,30 +301,6 @@ button:disabled,
   transform: scale(1); 
 }
 
-/* Theme toggle 
-.theme-toggle-button {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background-color: var(--neutral-200);
-  color: var(--neutral-700);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color var(--transition-fast), transform var(--transition-fast);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-}
-
-.theme-toggle-button:hover {
-  background-color: var(--neutral-300);
-  transform: rotate(15deg); 
-  border-radius: 50%; 
-} */
-
-/* Tab buttons */
-
-
 .tab-button:hover {
   background-color: var(--primary-transparent-hover);
   transform: translateY(-1px);
@@ -607,6 +583,7 @@ textarea {
     padding: 4px;
     scrollbar-width: thin;
     scrollbar-color: var(--neutral-300) transparent;
+    margin-top:2px;
   }
   
   .prompt-list::-webkit-scrollbar {
@@ -685,110 +662,9 @@ textarea {
     margin-bottom: 12px;
   }
   
-  .collection-dialog {
-    position: fixed;
-    top: 10%;
-    left: 10%;
-    width: 80%;
-    max-height: 80%;
-    background: white;
-    border: 1px solid #ccc;
-    box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
-    z-index: 1000;
-    overflow: auto;
-  }
-  
-  .dialog-header {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px;
-    border-bottom: 1px solid #eee;
-  }
-  
-  .dialog-content {
-    padding: 10px;
-    max-height: 70vh;
-    overflow-y: auto;
-  }
-  
-  #close-dialog {
-    background: none;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-  }
-  
   .empty-message {
     display: none;
   }
-
-  .tasks {
-    width: 300px;
-    position: relative;
-    margin: 40px auto;
-  }
-  input[type="checkbox"] {
-    display: none;
-  }
-  label {
-    background: #ae5f75;
-    height: 69px;
-    width: 100%;
-    display: block;
-    border-bottom: 1px solid #2C3E50;
-    color: #fff;
-    text-transform: capitalize;
-    font-weight: 900;
-    font-size: 11px;
-    letter-spacing: 1px;
-    text-indent: 20px;
-    cursor: pointer;
-    transition: all 0.7s ease;
-    position: relative;
-    padding: 5px;
-    box-sizing: border-box;
-  }
-  label h2 span {
-    display: block;
-    font-size: 12px;
-    text-transform: capitalize;
-    font-weight: normal;
-    color: #fff;
-  }
-  label:before {
-    content: "";
-    width: 20px;
-    height: 20px;
-    background: #fff;
-    display: block;
-    position: absolute;
-    border-radius: 100%;
-    right: 20px;
-    top: 30%;
-    transition: border 0.7s ease;
-  }
-  
-  /* Dynamic checked state styling */
-  input[type="checkbox"]:checked + label::before {
-  background: #4a90e2;
-  border-color: #4a90e2;
-}
-
-input[type="checkbox"]:checked + label::after {
-  content: "✓";
-  position: absolute;
-  left: 3px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: white;
-  font-size: 12px;
-}
-
-/* When checked, apply styling to the prompt text */
-input[type="checkbox"]:checked + label .prompt-text {
-  text-decoration: line-through;
-  color: #888;
-}
 
 /* Reset container styles */
 .reset-container {
@@ -1042,34 +918,3 @@ input[type="checkbox"]:checked + label .prompt-text {
     }
   }
  */ 
-
-/* ==============================================
-   14. Draf and Drop Styles
-   ============================================== */
-
- /* Drag and drop styles */
-.drag-handle {
-  cursor: grab;
-  opacity: 0.6;
-  transition: opacity 0.2s;
-}
-
-.drag-handle:hover {
-  opacity: 1;
-}
-
-.prompt-item.dragging {
-  opacity: 0.5;
-  background-color: #f0f0f0;
-}
-
-.prompt-item.drag-over {
-  border-top: 2px solid #4a90e2;
-}
-
-.prompt-item[draggable="true"] {
-  cursor: move;
-  padding-left: 8px;
-  display: flex;
-  align-items: center;
-}
