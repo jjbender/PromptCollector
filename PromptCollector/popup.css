@@ -50,7 +50,7 @@
     --icon-arrow-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='2' width='6' height='4' rx='1' ry='1'/%3E%3Cpath d='M16 4h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1'/%3E%3Cpath d='M12 10v6'/%3E%3Cpath d='M9 13l3 3 3-3'/%3E%3C/svg%3E");
     --icon-import: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12'/%3E%3Cpath d='M8 11l4 4 4-4'/%3E%3Cpath d='M4 21h16'/%3E%3C/svg%3E");
     --icon-reset-arrow: url("data:image/svg+xml;utf8,<svg fill='%23000000' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg' transform='matrix(-0.75, 0, 0, 0.75, 0, 0)'><path d='M19.146 4.854l-1.489 1.489A8 8 0 1 0 12 20a8.094 8.094 0 0 0 7.371-4.886 1 1 0 1 0-1.842-.779A6.071 6.071 0 0 1 12 18a6 6 0 1 1 4.243-10.243l-1.39 1.39a.5.5 0 0 0 .354.854H19.5A.5.5 0 0 0 20 9.5V5.207a.5.5 0 0 0-.854-.353z'/></svg>");
-
+    --icon-checklist:url("data:image/svg+xml;utf8,<svg viewBox='0 0 24 24' fill='none' stroke='%236d335c' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>");
 
 
 
@@ -625,6 +625,7 @@ textarea {
   .prompt-item, .collection-item {
     margin: 8px 4px;
     width: calc(100% - 8px);
+    position: relative;
   }
   
   .prompt-text {
@@ -644,7 +645,11 @@ textarea {
   .prompt-text[data-expanded="true"] {
     white-space: normal;
     background-color: transparent;
+    overflow: hidden;
+  text-overflow: ellipsis;
   }
+
+
   
   .prompt-text[data-expanded="false"] {
     white-space: nowrap;
@@ -716,6 +721,105 @@ textarea {
   .empty-message {
     display: none;
   }
+
+  .tasks {
+    width: 300px;
+    position: relative;
+    margin: 40px auto;
+  }
+  input[type="checkbox"] {
+    display: none;
+  }
+  label {
+    background: #ae5f75;
+    height: 69px;
+    width: 100%;
+    display: block;
+    border-bottom: 1px solid #2C3E50;
+    color: #fff;
+    text-transform: capitalize;
+    font-weight: 900;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-indent: 20px;
+    cursor: pointer;
+    transition: all 0.7s ease;
+    position: relative;
+    padding: 5px;
+    box-sizing: border-box;
+  }
+  label h2 span {
+    display: block;
+    font-size: 12px;
+    text-transform: capitalize;
+    font-weight: normal;
+    color: #fff;
+  }
+  label:before {
+    content: "";
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    display: block;
+    position: absolute;
+    border-radius: 100%;
+    right: 20px;
+    top: 30%;
+    transition: border 0.7s ease;
+  }
+  
+  /* Dynamic checked state styling */
+  input[type="checkbox"]:checked + label::before {
+  background: #4a90e2;
+  border-color: #4a90e2;
+}
+
+input[type="checkbox"]:checked + label::after {
+  content: "✓";
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: white;
+  font-size: 12px;
+}
+
+/* When checked, apply styling to the prompt text */
+input[type="checkbox"]:checked + label .prompt-text {
+  text-decoration: line-through;
+  color: #888;
+}
+
+/* Reset container styles */
+.reset-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  overflow: hidden; 
+  padding: 4px;
+  margin-bottom: 4px;
+}
+
+/* Reset button styles */
+.reset-container button {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Prompt text styles */
+.reset-container .prompt-info {
+  font-size: 10px;
+  color: var(--neutral-500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-grow: 1;
+}
+
+
 
 /* ==============================================
    10. FOOTER

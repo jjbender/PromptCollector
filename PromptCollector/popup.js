@@ -1,61 +1,4 @@
-// Structure scripts:
-// CONSTANTS
-// Any constants or configuration values
-
-// INITIALIZATION
-// Functions that run when the extension loads
-// - initTabs()
-// - setupEventListeners()
-// - DOMContentLoaded handler
-
-// UI MANIPULATION
-// Functions that handle UI changes
-// - toggleActiveCollectionEditMode()
-// - updateActiveCollectionUI()
-// - displaySearchResults()
-
-// ELEMENT CREATORS
-// Functions that create DOM elements
-// - createPromptItemElement()
-// - createCollectionItem()
-
-// DATA LOADERS
-// Functions that load data from storage
-// - loadBufferItems()
-// - loadCollections()
-// - performSearch()
-
-// DATA MODIFIERS
-// Functions that modify stored data
-// - saveToBuffer()
-// - saveToCollection()
-// - editPrompt()
-// - editCollectionPrompt()
-// - deletePrompt()
-// - deleteCollectionPrompt()
-// - renameCollection()
-// - createNewCollection()
-// - makeCollectionActive()
-// - deleteCollection()
-
-// CLIPBOARD OPERATIONS
-// Functions that deal with clipboard
-// - copyToClipboard()
-// - clipboardToActiveCollection()
-
-// IMPORT/EXPORT
-// Functions for importing/exporting collections
-// - exportCollection()
-// - importCollection() (not implemented yet)
-
-// UTILITIES
-// Helper functions
-// - safeStorageOperation()
-
-
-
-
-
+// Initialize the extension 
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize the extension
   initTabs();
@@ -106,10 +49,19 @@ const loadBufferItems = () => {
     bufferCount.textContent = `(${buffer.length}/10)`;
 
     handleIntroMessage(buffer, collections, activeIndex);
-    renderBufferItems(buffer, bufferList, bufferCount, data.bufferToggleState);
-    renderActiveCollection(collections, activeIndex, bufferList, data.collectionToggleState);
+    if (buffer.length > 0) {
+      renderBufferItems(buffer, bufferList, bufferCount, data.bufferToggleState !== false);
+    } else {
+      bufferList.innerHTML = '<div class="empty-message">No prompts saved in buffer yet</div>';
+    }
+    
+    // Render active collection separately (not duplicated in buffer list)
+    if (typeof activeIndex === 'number' && collections[activeIndex]) {
+      renderActiveCollection(collections, activeIndex, bufferList, data.collectionToggleState !== false);
+    }
   });
 };
+
 
 const handleIntroMessage = (buffer, collections, activeIndex) => {
   const introMessage = document.getElementById('intro-message');
@@ -122,58 +74,269 @@ const handleIntroMessage = (buffer, collections, activeIndex) => {
 };
 
 const renderBufferItems = (buffer, bufferList, bufferCount, bufferToggleState) => {
-  if (buffer.length > 0) {
-    const heading = createBufferHeading(bufferCount, bufferToggleState);
-    const bufferContainer = document.createElement('div');
-    bufferContainer.className = 'buffer-container';
-    bufferContainer.style.display = bufferToggleState ? 'block' : 'none';
+  const heading = createBufferHeading(bufferCount, bufferToggleState);
+  const bufferContainer = document.createElement('div');
+  bufferContainer.className = 'buffer-container';
+  bufferContainer.style.display = bufferToggleState ? 'block' : 'none';
 
-    buffer.slice().reverse().forEach((item, index) => {
-      const promptItem = createPromptItemElement(item, {
-        index,
-        includeDone: false
-      });
-      bufferContainer.appendChild(promptItem);
+  buffer.slice().reverse().forEach((item, index) => {
+    const promptItem = createPromptItemElement(item, {
+      index,
+      includeDone: false
     });
+    bufferContainer.appendChild(promptItem);
+  });
 
-    heading.addEventListener('click', () => toggleVisibility(bufferContainer, heading));
-    bufferList.appendChild(heading);
-    bufferList.appendChild(bufferContainer);
-  } else {
-    bufferList.innerHTML = '<div class="empty-message">No prompts saved in buffer yet</div>';
-  }
+  heading.addEventListener('click', () => toggleVisibility(bufferContainer, heading));
+  bufferList.appendChild(heading);
+  bufferList.appendChild(bufferContainer);
 };
 
 const renderActiveCollection = (collections, activeIndex, bufferList, collectionToggleState) => {
-  if (typeof activeIndex === 'number' && collections[activeIndex]) {
-    const activeCollection = collections[activeIndex];
-    const heading = createCollectionHeading(activeCollection, collectionToggleState);
-    const collectionContainer = document.createElement('div');
-    collectionContainer.className = 'collection-container';
-    collectionContainer.style.display = collectionToggleState ? 'block' : 'none';
+  const activeCollection = collections[activeIndex];
+  
+  // Check if any prompts are marked as done to decide whether to show reset button
+  const hasCompletedPrompts = activeCollection.prompts.some(prompt => 
+    typeof prompt === 'object' && prompt.done === true
+  );
+  
+  const heading = createCollectionHeading(activeCollection, collectionToggleState, hasCompletedPrompts);
+  const collectionContainer = document.createElement('div');
+  collectionContainer.className = 'collection-container';
+  collectionContainer.style.display = collectionToggleState ? 'block' : 'none';
 
-    activeCollection.prompts.forEach((prompt, promptIndex) => {
-      const promptText = typeof prompt === 'string' ? prompt : prompt.text;
-      const promptItem = createPromptItemElement(promptText, {
-        index: promptIndex,
-        includeDelete: false,
-        includeEdit: false,
-        includeSaveToCollection: false,
-        includeDone: true,
-        done: prompt.done || false,
-        collectionIndex: activeIndex, // Pass the correct collection index
-        includeEditCollection: true,
-        includeDeleteFromCollection: true // Enable "Delete from Collection" button
+  activeCollection.prompts.forEach((prompt, promptIndex) => {
+    // Skip already done prompts when displaying
+    if (typeof prompt === 'object' && prompt.done === true) {
+      // For done prompts, create a reset button instead
+      const resetContainer = document.createElement('div');
+      resetContainer.className = 'reset-container';
+      resetContainer.style.textAlign = 'center';
+      
+      const promptInfo = document.createElement('div');
+      promptInfo.style.fontSize = '12px';
+      promptInfo.style.color = '#777';
+      promptInfo.style.marginBottom = '4px';
+      
+      const promptText = prompt.text;
+      promptInfo.textContent = promptText.length > 30 ? promptText.substring(0, 30) + '...' : promptText;
+      
+      const resetButton = document.createElement('button');
+      resetButton.textContent = 'Reset prompt';
+      resetButton.className = 'secondary';
+      resetButton.addEventListener('click', () => {
+        // Reset this prompt's done status
+        prompt.done = false;
+        chrome.storage.local.set({ promptCollections: collections }, () => {
+          loadBufferItems(); // Refresh the UI
+        });
       });
+      
+      resetContainer.appendChild(resetButton);
+      resetContainer.appendChild(promptInfo);
+      collectionContainer.appendChild(resetContainer);
+    } else {
+      // For active prompts, use our new component
+      const promptItem = createCollectionPromptItem(prompt, promptIndex, activeIndex);
       collectionContainer.appendChild(promptItem);
+    }
+  });
+
+  heading.addEventListener('click', () => toggleVisibility(collectionContainer, heading));
+  bufferList.appendChild(heading);
+  bufferList.appendChild(collectionContainer);
+};
+
+const createCollectionPromptItem = (prompt, promptIndex, collectionIndex) => {
+  // Get text from prompt (handle both string and object formats)
+  const promptText = typeof prompt === 'string' ? prompt : prompt.text;
+  const isDone = typeof prompt === 'object' && prompt.done === true;
+  
+  const item = document.createElement('div');
+  item.className = 'prompt-item';
+  
+  // Display text reduced to 50 symbols (same as in buffer)
+  const displayText = promptText.length > 50 ? promptText.substring(0, 50) + '...' : promptText;
+  
+  // Create prompt text element
+  const promptText_element = document.createElement('div');
+  promptText_element.className = 'prompt-text';
+  promptText_element.textContent = displayText;
+  promptText_element.setAttribute('data-full-text', promptText);
+  promptText_element.setAttribute('data-expanded', 'false');
+  
+  if (isDone) {
+    // Create reset container
+    const resetContainer = document.createElement('div');
+resetContainer.className = 'reset-container';
+
+// Create reset button
+const resetButton = document.createElement('button');
+resetButton.textContent = 'Reset';
+resetButton.className = 'reset-button';
+resetButton.addEventListener('click', () => {
+  // Reset this prompt's done status
+  chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
+    const collections = data.promptCollections || [];
+    const activeIndex = data.activeCollectionIndex;
+
+    if (typeof activeIndex !== 'number' || !collections[activeIndex]) return;
+
+    if (typeof collections[activeIndex].prompts[promptIndex] === 'object') {
+      collections[activeIndex].prompts[promptIndex].done = false;
+    }
+
+    chrome.storage.local.set({ promptCollections: collections }, () => {
+      // Reload all items to refresh UI
+      loadBufferItems();
     });
+  });
+});
 
-    
+// Create small toggled prompt text
+const promptInfo = document.createElement('div');
+promptInfo.className = 'prompt-info';
+promptInfo.textContent = promptText.length > 30 ? promptText.substring(0, 30) + '...' : promptText;
 
-    heading.addEventListener('click', () => toggleVisibility(collectionContainer, heading));
-    bufferList.appendChild(heading);
-    bufferList.appendChild(collectionContainer);
+// Add reset button and prompt text to the container
+resetContainer.appendChild(resetButton);
+resetContainer.appendChild(promptInfo);
+
+// Append reset container to the collection container
+collectionContainer.appendChild(resetContainer);
   }
+  
+  // Create flex container for text and toggle button (same as buffer)
+  const textContainer = document.createElement('div');
+  textContainer.className = 'text-container';
+  textContainer.style.display = 'flex';
+  textContainer.style.alignItems = 'center';
+  textContainer.style.justifyContent = 'space-between';
+  textContainer.style.width = '100%';
+  
+  // Add text to container
+  textContainer.appendChild(promptText_element);
+  
+  // Create toggle button (outside of text)
+  const toggleButton = document.createElement('button');
+  toggleButton.className = 'toggle-text-button';
+  toggleButton.innerHTML = '⤢'; // Expand icon
+  toggleButton.style.marginLeft = '8px';
+  toggleButton.style.cursor = 'pointer';
+  toggleButton.style.background = 'none';
+  toggleButton.style.border = 'none';
+  toggleButton.style.padding = '0 4px';
+  toggleButton.style.fontSize = '14px';
+  toggleButton.setAttribute('title', 'Expand/Collapse text');
+  
+  // Add toggle button to container
+
+  
+  // Add text container to item
+  item.appendChild(textContainer);
+  
+  const actions = document.createElement('div');
+  actions.className = 'prompt-actions';
+  
+  // Copy & Done button (this is the new functionality)
+  const copyDoneBtn = document.createElement('button');
+copyDoneBtn.textContent = 'Copy & Done';
+copyDoneBtn.addEventListener('click', () => {
+  // Copy text to clipboard
+  navigator.clipboard.writeText(promptText).then(() => {
+    console.log('Text copied to clipboard');
+
+    // Mark prompt as done in storage
+    chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
+      const collections = data.promptCollections || [];
+      const activeIndex = data.activeCollectionIndex;
+
+      if (typeof activeIndex !== 'number' || !collections[activeIndex]) return;
+
+      // Update the prompt's done status
+      if (typeof collections[activeIndex].prompts[promptIndex] === 'string') {
+        // Convert string prompt to object with done property
+        collections[activeIndex].prompts[promptIndex] = {
+          text: collections[activeIndex].prompts[promptIndex],
+          added: Date.now(),
+          done: true
+        };
+      } else {
+        // Update existing object
+        collections[activeIndex].prompts[promptIndex].done = true;
+      }
+
+      // Save back to storage
+      chrome.storage.local.set({ promptCollections: collections }, () => {
+        // Update the UI to reflect the "done" state
+        item.classList.add('done'); // Add a CSS class for "done" styling
+        promptText_element.style.textDecoration = 'line-through'; // Strikethrough text
+        copyDoneBtn.disabled = true; // Disable the button after marking as done
+        loadBufferItems(); // Refresh buffer
+        loadCollections(); // Refresh collections
+      });
+    });
+  }).catch(err => {
+    console.error('Failed to copy text: ', err);
+  });
+});
+actions.appendChild(copyDoneBtn);
+  
+  // Keep the other action buttons
+  // Regular Copy button
+  const copyBtn = document.createElement('button');
+  copyBtn.textContent = 'Copy';
+  copyBtn.addEventListener('click', () => copyToClipboard(promptText, copyBtn));
+  actions.appendChild(copyBtn);
+  
+  // Edit button
+  if (collectionIndex !== null && promptIndex !== null) {
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', () => {
+      editCollectionPrompt(collectionIndex, promptIndex);
+    });
+    actions.appendChild(editBtn);
+  }
+  
+  // Delete button
+  if (collectionIndex !== null && promptIndex !== null) {
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = 'Delete from Collection';
+    deleteBtn.addEventListener('click', () => {
+      deleteCollectionPrompt(collectionIndex, promptIndex);
+    });
+    actions.appendChild(deleteBtn);
+  }
+  
+  item.appendChild(actions);
+  
+  // Functions for expanding/collapsing text (same as buffer)
+  const toggleTextDisplay = () => {
+    const isExpanded = promptText_element.getAttribute('data-expanded') === 'true';
+    promptText_element.textContent = isExpanded ? displayText : promptText_element.getAttribute('data-full-text');
+    promptText_element.setAttribute('data-expanded', (!isExpanded).toString());
+    toggleButton.innerHTML = isExpanded ? '⤢' : '⤡'; // Change icon based on state
+  };
+  
+  // Click on prompt text to toggle expansion
+  promptText_element.addEventListener('click', toggleTextDisplay);
+  
+  // Click on toggle button to expand/collapse
+  toggleButton.addEventListener('click', (e) => {
+    e.preventDefault(); // Prevent default behavior
+    e.stopPropagation(); // Prevent event from bubbling up
+    toggleTextDisplay();
+  });
+  
+  // Double-click to copy
+  promptText_element.addEventListener('dblclick', (e) => {
+    e.preventDefault(); // Prevent default behavior
+    e.stopPropagation(); // Prevent event from bubbling up
+    copyToClipboard(promptText, copyBtn);
+  });
+  
+  return item;
 };
 
 const createBufferHeading = (bufferCount, bufferToggleState) => {
@@ -197,7 +360,7 @@ const createBufferHeading = (bufferCount, bufferToggleState) => {
   return heading;
 };
 
-const createCollectionHeading = (activeCollection, collectionToggleState) => {
+const createCollectionHeading = (activeCollection, collectionToggleState, hasCompletedPrompts) => {
   const heading = document.createElement('h2');
   heading.style.cursor = 'pointer';
   heading.style.display = 'flex';
@@ -214,17 +377,53 @@ const createCollectionHeading = (activeCollection, collectionToggleState) => {
   heading.appendChild(caret);
   heading.appendChild(headingText);
 
-  const resetButton = document.createElement('button');
+  // Only show reset button if there are completed prompts
+  if (hasCompletedPrompts) {
+    const resetButton = document.createElement('button');
     resetButton.textContent = '';
     resetButton.id = "reset-collection-button";
-    resetButton.className = "toggle-button secondary";
+    resetButton.className = "toggle-button secondary tooltip";
+
+    const tooltipText = document.createElement('span');
+    tooltipText.className = 'tooltip-text'; // Use the existing tooltip-text class
+    tooltipText.textContent = 'Reset all prompts'; 
+    resetButton.appendChild(tooltipText);
     
     resetButton.addEventListener('click', resetCollectionPrompts);
     heading.appendChild(resetButton);
+  }
 
   return heading;
 };
 
+const updateCollectionHeading =(collection, collectionIndex)=> {
+  // Check if any prompts are marked as done
+  const hasCompletedPrompts = collection.prompts.some(prompt => 
+    typeof prompt === 'object' && prompt.done === true
+  );
+  
+  // Find the existing heading element
+  const existingHeading = document.querySelector(`h2:nth-of-type(${collectionIndex + 2})`); // +2 because of buffer heading
+  
+  if (existingHeading) {
+    // Check if we already have a reset button
+    const existingResetButton = existingHeading.querySelector('#reset-collection-button');
+    
+    if (hasCompletedPrompts && !existingResetButton) {
+      // Add reset button if not present
+      const resetButton = document.createElement('button');
+      resetButton.textContent = '';
+      resetButton.id = "reset-collection-button";
+      resetButton.className = "toggle-button secondary";
+      
+      resetButton.addEventListener('click', resetCollectionPrompts);
+      existingHeading.appendChild(resetButton);
+    } else if (!hasCompletedPrompts && existingResetButton) {
+      // Remove reset button if no completed prompts
+      existingHeading.removeChild(existingResetButton);
+    }
+  }
+}
 const toggleVisibility = (container, heading) => {
   const isVisible = container.style.display === 'block';
   container.style.display = isVisible ? 'none' : 'block';
@@ -283,9 +482,41 @@ const createPromptItemElement = (text, options = {}) => {
   const item = document.createElement('div');
   item.className = 'prompt-item';
 
+  // Display text reduced to 50 symbols
+  const displayText = text.length > 50 ? text.substring(0, 50) + '...' : text;
+  
+  // Create prompt text element
   const promptText = document.createElement('div');
   promptText.className = 'prompt-text';
-  promptText.textContent = text;
+  promptText.textContent = displayText;
+  promptText.setAttribute('data-full-text', text);
+  promptText.setAttribute('data-expanded', 'false');
+
+  // Create flex container for text and toggle button
+  const textContainer = document.createElement('div');
+  textContainer.className = 'text-container';
+  textContainer.style.display = 'flex';
+  textContainer.style.alignItems = 'center';
+  textContainer.style.justifyContent = 'space-between';
+  textContainer.style.width = '100%';
+
+  // Add text to container
+  textContainer.appendChild(promptText);
+
+  // Create toggle button (outside of text)
+  const toggleButton = document.createElement('button');
+  toggleButton.className = 'toggle-text-button';
+  toggleButton.innerHTML = '⤢'; // Expand icon
+  toggleButton.style.marginLeft = '8px';
+  toggleButton.style.cursor = 'pointer';
+  toggleButton.style.background = 'none';
+  toggleButton.style.border = 'none';
+  toggleButton.style.padding = '0 4px';
+  toggleButton.style.fontSize = '14px';
+  toggleButton.setAttribute('title', 'Expand/Collapse text');
+  
+  // Add toggle button to container
+  
 
   if (done) {
     promptText.style.textDecoration = 'line-through'; // Strikethrough for done prompts
@@ -293,22 +524,28 @@ const createPromptItemElement = (text, options = {}) => {
 
   // Add "done" checkbox only if includeDone is true
   if (includeDone) {
+    const checkboxId = `prompt-checkbox-${collectionIndex}-${index}`;
+  
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
+    checkbox.id = checkboxId;
     checkbox.checked = done;
+    checkbox.style.display = 'none'; // Hide actual checkbox for CSS styling
+  
     checkbox.addEventListener('change', () => {
       markPromptAsDone(index, checkbox.checked);
     });
+  
+    const label = document.createElement('label');
+    label.setAttribute('for', checkboxId);
+    label.appendChild(textContainer); // Add the text container to the label
+  
     item.appendChild(checkbox);
+    item.appendChild(label);
+  } else {
+    // If not including done checkbox, just add the text container directly
+    item.appendChild(textContainer);
   }
-
-  item.appendChild(promptText);
-
-  // Display text reduced to 50 symbols
-  const displayText = text.length > 50 ? text.substring(0, 50) + '...' : text;
-  promptText.textContent = displayText;
-  promptText.setAttribute('data-full-text', text);
-  promptText.setAttribute('data-expanded', 'false');
 
   // Add source, buffer, or collection mainly
   if (source) {
@@ -368,7 +605,6 @@ const createPromptItemElement = (text, options = {}) => {
     actions.appendChild(editCollectionBtn);
   }
 
-
   if (includeDeleteFromCollection && collectionIndex !== null && index !== null) {
     const deleteFromCollectionBtn = document.createElement('button');
     deleteFromCollectionBtn.textContent = 'Delete from Collection';
@@ -378,23 +614,36 @@ const createPromptItemElement = (text, options = {}) => {
     actions.appendChild(deleteFromCollectionBtn);
   }
 
-  item.appendChild(promptText);
   item.appendChild(actions);
 
-  // Expand/collapse behavior
-  promptText.addEventListener('click', function () {
-    const isExpanded = this.getAttribute('data-expanded') === 'true';
-    this.textContent = isExpanded ? displayText : this.getAttribute('data-full-text');
-    this.setAttribute('data-expanded', (!isExpanded).toString());
+  // Functions for expanding/collapsing text
+  const toggleTextDisplay = () => {
+    const isExpanded = promptText.getAttribute('data-expanded') === 'true';
+    promptText.textContent = isExpanded ? displayText : promptText.getAttribute('data-full-text');
+    promptText.setAttribute('data-expanded', (!isExpanded).toString());
+    toggleButton.innerHTML = isExpanded ? '⤢' : '⤡'; // Change icon based on state
+  };
+
+  // Click on prompt text to toggle expansion
+  promptText.addEventListener('click', toggleTextDisplay);
+  
+  // Click on toggle button to expand/collapse
+  toggleButton.addEventListener('click', (e) => {
+    e.preventDefault(); // Prevent checkbox toggle when clicking the button
+    e.stopPropagation(); // Prevent event bubbling to label
+    toggleTextDisplay();
   });
 
   // Double-click to copy
-  promptText.addEventListener('dblclick', () => {
+  promptText.addEventListener('dblclick', (e) => {
+    e.preventDefault(); // Prevent default behavior
+    e.stopPropagation(); // Prevent event from bubbling up
     copyToClipboard(text, copyBtn);
   });
 
   return item;
 };
+
 
 const markPromptAsDone = (index, isDone) => {
   chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
@@ -424,6 +673,7 @@ const resetCollectionPrompts = () => {
 
     chrome.storage.local.set({ promptCollections: collections }, () => {
       loadBufferItems(); // Refresh the UI
+      loadCollections();
     });
   });
 };
