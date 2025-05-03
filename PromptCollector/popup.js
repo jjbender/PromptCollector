@@ -21,9 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Initial buffer toggle state set to hidden.');
   });
 });
-
-
-
 // Tab functionality
 const initTabs = () => {
   const tabs = document.querySelectorAll('.tab-button');
@@ -42,9 +39,7 @@ const initTabs = () => {
     });
   });
 };
-
-/* Workplace and buffer functionality */
-
+/* Workplace TAB render headers, buffer, active collection,  prompt items */
 // Load buffer items from storage
 const loadBufferItems = () => {
   chrome.storage.local.get(['promptBuffer', 'promptCollections', 'activeCollectionIndex', 'collectionToggleState', 'bufferToggleState'], data => {
@@ -66,8 +61,6 @@ const loadBufferItems = () => {
     }
   });
 };
-
-
 const renderBufferItems = (buffer, bufferList,bufferToggleState) => {
   const heading = createBufferHeading(bufferToggleState);
   const bufferContainer = document.createElement('div');
@@ -86,7 +79,6 @@ const renderBufferItems = (buffer, bufferList,bufferToggleState) => {
   bufferList.appendChild(heading);
   bufferList.appendChild(bufferContainer);
 };
-
 const renderActiveCollection = (collections, activeIndex, bufferList, collectionToggleState) => {
   const activeCollection = collections[activeIndex];
   
@@ -141,7 +133,6 @@ const renderActiveCollection = (collections, activeIndex, bufferList, collection
   bufferList.appendChild(heading);
   bufferList.appendChild(collectionContainer);
 };
-
 const createCollectionPromptItem = (prompt, promptIndex, collectionIndex) => {
   // Get text from prompt (handle both string and object formats)
   const promptText = typeof prompt === 'string' ? prompt : prompt.text;
@@ -333,7 +324,6 @@ actions.appendChild(copyDoneBtn);
   
   return item;
 };
-
 const createBufferHeading = (bufferToggleState) => {
   const heading = document.createElement('h2');
   heading.style.cursor = 'pointer';
@@ -353,7 +343,6 @@ const createBufferHeading = (bufferToggleState) => {
 
   return heading;
 };
-
 const createCollectionHeading = (activeCollection, collectionToggleState, hasCompletedPrompts) => {
   const heading = document.createElement('h2');
   heading.style.cursor = 'pointer';
@@ -389,41 +378,11 @@ const createCollectionHeading = (activeCollection, collectionToggleState, hasCom
 
   return heading;
 };
-
-const updateCollectionHeading =(collection, collectionIndex)=> {
-  // Check if any prompts are marked as done
-  const hasCompletedPrompts = collection.prompts.some(prompt => 
-    typeof prompt === 'object' && prompt.done === true
-  );
-  
-  // Find the existing heading element
-  const existingHeading = document.querySelector(`h2:nth-of-type(${collectionIndex + 2})`); // +2 because of buffer heading
-  
-  if (existingHeading) {
-    // Check if we already have a reset button
-    const existingResetButton = existingHeading.querySelector('#reset-collection-button');
-    
-    if (hasCompletedPrompts && !existingResetButton) {
-      // Add reset button if not present
-      const resetButton = document.createElement('button');
-      resetButton.textContent = '';
-      resetButton.id = "reset-collection-button";
-      resetButton.className = "toggle-button secondary";
-      
-      resetButton.addEventListener('click', resetCollectionPrompts);
-      existingHeading.appendChild(resetButton);
-    } else if (!hasCompletedPrompts && existingResetButton) {
-      // Remove reset button if no completed prompts
-      existingHeading.removeChild(existingResetButton);
-    }
-  }
-}
 const toggleVisibility = (container, heading) => {
   const isVisible = container.style.display === 'block';
   container.style.display = isVisible ? 'none' : 'block';
   heading.querySelector('span').textContent = isVisible ? '►' : '▼';
 };
-
 // Unified function to create prompt item elements
 const createPromptItemElement = (text, options = {}) => {
   const { 
@@ -584,7 +543,35 @@ const createPromptItemElement = (text, options = {}) => {
 
   return item;
 };
-
+/* WORKPLACE TAB - TO DO LIST FUNCTIONALITY */
+const updateCollectionHeading =(collection, collectionIndex)=> {
+  // Check if any prompts are marked as done
+  const hasCompletedPrompts = collection.prompts.some(prompt => 
+    typeof prompt === 'object' && prompt.done === true
+  );
+  
+  // Find the existing heading element
+  const existingHeading = document.querySelector(`h2:nth-of-type(${collectionIndex + 2})`); // +2 because of buffer heading
+  
+  if (existingHeading) {
+    // Check if we already have a reset button
+    const existingResetButton = existingHeading.querySelector('#reset-collection-button');
+    
+    if (hasCompletedPrompts && !existingResetButton) {
+      // Add reset button if not present
+      const resetButton = document.createElement('button');
+      resetButton.textContent = '';
+      resetButton.id = "reset-collection-button";
+      resetButton.className = "toggle-button secondary";
+      
+      resetButton.addEventListener('click', resetCollectionPrompts);
+      existingHeading.appendChild(resetButton);
+    } else if (!hasCompletedPrompts && existingResetButton) {
+      // Remove reset button if no completed prompts
+      existingHeading.removeChild(existingResetButton);
+    }
+  }
+}
 const markPromptAsDone = (index, isDone) => {
   chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
     const collections = data.promptCollections || [];
@@ -599,7 +586,6 @@ const markPromptAsDone = (index, isDone) => {
     });
   });
 };
-
 const resetCollectionPrompts = () => {
   chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
     const collections = data.promptCollections || [];
@@ -617,6 +603,7 @@ const resetCollectionPrompts = () => {
     });
   });
 };
+/* WORKPLACE TAB - BUTTON FUNCTIONS */
 
 // Unified Copy text to clipboard function
 const copyToClipboard = (text, button) => {
@@ -642,7 +629,6 @@ const copyToClipboard = (text, button) => {
     }, 100);
   }
 };
-
 // Shortcut to save clipboard to active collection
 const clipboardToActiveCollection = () => {
   if (!document.hasFocus()) {
@@ -696,7 +682,6 @@ const clipboardToActiveCollection = () => {
     }, 2000);
   });
 };
-
 const clipboardToBuffer = () => {
   if (!document.hasFocus()) {
     console.warn('Document is not focused. Attempting to focus...');
@@ -757,8 +742,7 @@ const clipboardToBuffer = () => {
     }, 2000);
   });
 };
-
-// Edit a prompt
+// Edit a buffer prompt via clipboard window
 const editPrompt = (index) => {
   chrome.storage.local.get('promptBuffer', data => {
     let buffer = data.promptBuffer || [];
@@ -872,7 +856,7 @@ const editPrompt = (index) => {
     };
   });
 };
-
+// Edit collection prompt - via chrome window
 const editCollectionPrompt = (collectionIndex, promptIndex) => {
   chrome.storage.local.get('promptCollections', data => {
     const collections = data.promptCollections || [];
@@ -904,8 +888,6 @@ const editCollectionPrompt = (collectionIndex, promptIndex) => {
     });
   });
 };
-
-
 // Delete a prompt from buffer
 const deletePrompt = (index) => {
   chrome.storage.local.get('promptBuffer', data => {
@@ -920,7 +902,6 @@ const deletePrompt = (index) => {
     });
   });
 };
-
 const deleteCollectionPrompt = (collectionIndex, promptIndex) => {
   chrome.storage.local.get('promptCollections', data => {
     const collections = data.promptCollections || [];
@@ -941,10 +922,35 @@ const deleteCollectionPrompt = (collectionIndex, promptIndex) => {
     });
   });
 };
-
-
-/* COLLECTION MANAGER TAB FUNCTIONS */
-
+// Save text to buffer
+const saveToBuffer =(text) => {
+  safeStorageOperation(
+    callback => chrome.storage.local.get('promptBuffer', callback),
+    data => {
+      let buffer = data.promptBuffer || [];
+      
+      // Check if the exact same text already exists in the buffer
+      if (buffer.some(item => item === text)) {
+        alert('This text already exists in the buffer.');
+        return;
+      }
+      
+      buffer.push(text);
+      
+      if (buffer.length > 10) {
+        buffer = buffer.slice(buffer.length - 10);
+      }
+      
+      safeStorageOperation(
+        callback => chrome.storage.local.set({ promptBuffer: buffer }, callback),
+        () => {
+          // Explicitly call loadBufferItems here to ensure the UI updates
+          loadBufferItems();
+        }
+      );
+    }
+  );
+}
 // Save a prompt to an existing or new collection
 const saveToCollection = (text) => {
   chrome.storage.local.get('promptCollections', data => {
@@ -1032,6 +1038,7 @@ const saveToCollection = (text) => {
   });
 };
 
+/* COLLECTION MANAGER TAB FUNCTIONS */
 // Load collections from storage
 const loadCollections = () => {
   chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
@@ -1059,7 +1066,6 @@ const loadCollections = () => {
     }
   });
 };
-
 const updateActiveCollectionUI = (activeIndex) => {
   // Get all collection items
   const collectionItems = document.querySelectorAll('.collection-item');
@@ -1089,9 +1095,26 @@ const updateActiveCollectionUI = (activeIndex) => {
     }
   });
 };
-
 // Автор Николай Третьяков
-
+// Create a new collection
+const createNewCollection = (name) => {
+  chrome.storage.local.get('promptCollections', function(data) {
+    let collections = data.promptCollections || [];
+    
+    const newCollection = {
+      name: name,
+      created: Date.now(),
+      updated: Date.now(),
+      prompts: []
+    };
+    
+    collections.push(newCollection);
+    
+    chrome.storage.local.set({ promptCollections: collections }, function() {
+      loadCollections();
+    });
+  });
+}
 const createCollectionItem = (collection, index) => {
   const item = document.createElement('div');
   item.className = 'collection-item';
@@ -1140,7 +1163,6 @@ const createCollectionItem = (collection, index) => {
   
   return item;
 };
-
 // Rename Collection
 const renameCollection = (index) => {
   chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
@@ -1186,7 +1208,6 @@ const renameCollection = (index) => {
     });
   });
 };
-
 const makeCollectionActive = (index) => {
   // Reset edit mode
   activeCollectionEditMode = false;
@@ -1201,10 +1222,8 @@ const makeCollectionActive = (index) => {
     loadBufferItems(); // Re-render Buffer tab
   });
 };
-
-
 // Import collection from JSON file
-function importCollection() {
+const importCollection =() => {
   // Create a hidden file input element
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
@@ -1285,7 +1304,6 @@ function importCollection() {
     reader.readAsText(file);
   });
 }
-
 // Export collection to JSON / TXT file
 const exportCollection = (collection, type) => {
   if (type === 'json') {
@@ -1312,7 +1330,6 @@ const exportCollection = (collection, type) => {
     console.error('Unsupported export type:', type);
   }
 };
-
 // Delete collection
 const deleteCollection = (index) => {
   chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
@@ -1348,11 +1365,7 @@ const deleteCollection = (index) => {
     });
   });
 };
-
-///////////////////////////////////////////
-// BUTTON (event listener FUNCTIONS     //
-/////////////////////////////////////////
-
+/* BUTTON (event listener FUNCTIONS */
 // Set up event listeners
 function setupEventListeners() {
   
@@ -1445,60 +1458,7 @@ function setupEventListeners() {
     }
   });
 }
-
-// Save text to buffer
-const saveToBuffer =(text) => {
-  safeStorageOperation(
-    callback => chrome.storage.local.get('promptBuffer', callback),
-    data => {
-      let buffer = data.promptBuffer || [];
-      
-      // Check if the exact same text already exists in the buffer
-      if (buffer.some(item => item === text)) {
-        alert('This text already exists in the buffer.');
-        return;
-      }
-      
-      buffer.push(text);
-      
-      if (buffer.length > 10) {
-        buffer = buffer.slice(buffer.length - 10);
-      }
-      
-      safeStorageOperation(
-        callback => chrome.storage.local.set({ promptBuffer: buffer }, callback),
-        () => {
-          // Explicitly call loadBufferItems here to ensure the UI updates
-          loadBufferItems();
-        }
-      );
-    }
-  );
-}
-
-// Create a new collection
-function createNewCollection(name) {
-  chrome.storage.local.get('promptCollections', function(data) {
-    let collections = data.promptCollections || [];
-    
-    const newCollection = {
-      name: name,
-      created: Date.now(),
-      updated: Date.now(),
-      prompts: []
-    };
-    
-    collections.push(newCollection);
-    
-    chrome.storage.local.set({ promptCollections: collections }, function() {
-      loadCollections();
-    });
-  });
-}
-
-
 /* SEARCH FUNCTIONS */
-
 // Perform search in buffer and collections
 const performSearch = (term) => {
   const resultsContainer = document.getElementById('search-results');
@@ -1535,7 +1495,6 @@ const performSearch = (term) => {
     displaySearchResults(results);
   });
 };
-
 // Display search results using the unified item creation function
 const displaySearchResults = (results) => {
   const resultsContainer = document.getElementById('search-results');
@@ -1567,10 +1526,7 @@ const displaySearchResults = (results) => {
     resultsContainer.appendChild(resultItem);
   });
 };
-
-
 /* Local Storage and Defaults */
-
 function safeStorageOperation(operation, callback) {
   try {
     operation(result => {
@@ -1587,7 +1543,6 @@ function safeStorageOperation(operation, callback) {
     alert('An error occurred. Please try again.');
   }
 }
-
 function initializeDefaultsIfFirstTime() {
   chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], (data) => {
     const collections = data.promptCollections || [];
@@ -1621,5 +1576,4 @@ function initializeDefaultsIfFirstTime() {
     }
   });
 }
-
-//Created by Nikolay Tretyakov
+// Prompt Collector. Created by Nikolay Tretyakov May 2025
