@@ -10,10 +10,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // Set initial state of toggle button to match hidden input area
   const toggleButton = document.getElementById('toggle-input');
   toggleButton.textContent = '+';
-});
 
-// Let active collections be not in edit mode in the start
-let activeCollectionEditMode = false;
+  const bufferContainer = document.querySelector('.buffer-container');
+  if (bufferContainer) {
+    bufferContainer.style.display = 'none'; // Hide the buffer container
+  }
+
+  // Update bufferToggleState in storage
+  chrome.storage.local.set({ bufferToggleState: false }, () => {
+    console.log('Initial buffer toggle state set to hidden.');
+  });
+});
 
 
 
@@ -36,22 +43,19 @@ const initTabs = () => {
   });
 };
 
+/* Workplace and buffer functionality */
+
 // Load buffer items from storage
 const loadBufferItems = () => {
   chrome.storage.local.get(['promptBuffer', 'promptCollections', 'activeCollectionIndex', 'collectionToggleState', 'bufferToggleState'], data => {
     const bufferList = document.getElementById('buffer-list');
-    const bufferCount = document.getElementById('buffer-count');
-
     const buffer = data.promptBuffer || [];
     const collections = data.promptCollections || [];
     const activeIndex = data.activeCollectionIndex;
 
     bufferList.innerHTML = '';
-    bufferCount.textContent = `(${buffer.length}/10)`;
-
-    handleIntroMessage(buffer, collections, activeIndex);
     if (buffer.length > 0) {
-      renderBufferItems(buffer, bufferList, bufferCount, data.bufferToggleState !== false);
+      renderBufferItems(buffer, bufferList, data.bufferToggleState !== false);
     } else {
       bufferList.innerHTML = '<div class="empty-message">No prompts saved in buffer yet</div>';
     }
@@ -64,18 +68,8 @@ const loadBufferItems = () => {
 };
 
 
-const handleIntroMessage = (buffer, collections, activeIndex) => {
-  const introMessage = document.getElementById('intro-message');
-  if (introMessage) {
-    const hasBufferItems = buffer.length > 0;
-    const hasActivePrompts = typeof activeIndex === 'number' && collections[activeIndex]?.prompts.length > 0;
-
-    introMessage.style.display = hasBufferItems || hasActivePrompts ? 'none' : 'block';
-  }
-};
-
-const renderBufferItems = (buffer, bufferList, bufferCount, bufferToggleState) => {
-  const heading = createBufferHeading(bufferCount, bufferToggleState);
+const renderBufferItems = (buffer, bufferList,bufferToggleState) => {
+  const heading = createBufferHeading(bufferToggleState);
   const bufferContainer = document.createElement('div');
   bufferContainer.className = 'buffer-container';
   bufferContainer.style.display = bufferToggleState ? 'block' : 'none';
@@ -340,7 +334,7 @@ actions.appendChild(copyDoneBtn);
   return item;
 };
 
-const createBufferHeading = (bufferCount, bufferToggleState) => {
+const createBufferHeading = (bufferToggleState) => {
   const heading = document.createElement('h2');
   heading.style.cursor = 'pointer';
   heading.style.display = 'flex';
@@ -356,7 +350,6 @@ const createBufferHeading = (bufferCount, bufferToggleState) => {
 
   heading.appendChild(caret);
   heading.appendChild(headingText);
-  heading.appendChild(bufferCount);
 
   return heading;
 };
@@ -431,39 +424,6 @@ const toggleVisibility = (container, heading) => {
   heading.querySelector('span').textContent = isVisible ? '►' : '▼';
 };
 
-// Function to edit a prompt within a collection
-const editCollectionPrompt = (collectionIndex, promptIndex) => {
-  chrome.storage.local.get('promptCollections', data => {
-    const collections = data.promptCollections || [];
-    if (!collections[collectionIndex] || !collections[collectionIndex].prompts[promptIndex]) {
-      alert('Prompt not found.');
-      return;
-    }
-    
-    const prompt = collections[collectionIndex].prompts[promptIndex];
-    const promptText = typeof prompt === 'string' ? prompt : prompt.text;
-    
-    // Show dialog to edit the prompt text
-    const newText = window.prompt('Edit prompt:', promptText);
-    if (newText === null) return; // User clicked Cancel
-    
-    // Update the prompt
-    if (typeof prompt === 'string') {
-      collections[collectionIndex].prompts[promptIndex] = newText;
-    } else {
-      collections[collectionIndex].prompts[promptIndex].text = newText;
-    }
-    
-    // Update the collection's "updated" timestamp
-    collections[collectionIndex].updated = Date.now();
-    
-    // Save back to storage
-    chrome.storage.local.set({ promptCollections: collections }, () => {
-      loadBufferItems(); // Refresh the display
-    });
-  });
-};
-
 // Unified function to create prompt item elements
 const createPromptItemElement = (text, options = {}) => {
   const { 
@@ -503,21 +463,6 @@ const createPromptItemElement = (text, options = {}) => {
 
   // Add text to container
   textContainer.appendChild(promptText);
-
-  // Create toggle button (outside of text)
-  const toggleButton = document.createElement('button');
-  toggleButton.className = 'toggle-text-button';
-  toggleButton.innerHTML = '⤢'; // Expand icon
-  toggleButton.style.marginLeft = '8px';
-  toggleButton.style.cursor = 'pointer';
-  toggleButton.style.background = 'none';
-  toggleButton.style.border = 'none';
-  toggleButton.style.padding = '0 4px';
-  toggleButton.style.fontSize = '14px';
-  toggleButton.setAttribute('title', 'Expand/Collapse text');
-  
-  // Add toggle button to container
-  
 
   if (done) {
     promptText.style.textDecoration = 'line-through'; // Strikethrough for done prompts
@@ -629,12 +574,7 @@ const createPromptItemElement = (text, options = {}) => {
   promptText.addEventListener('click', toggleTextDisplay);
   
   // Click on toggle button to expand/collapse
-  toggleButton.addEventListener('click', (e) => {
-    e.preventDefault(); // Prevent checkbox toggle when clicking the button
-    e.stopPropagation(); // Prevent event bubbling to label
-    toggleTextDisplay();
-  });
-
+ 
   // Double-click to copy
   promptText.addEventListener('dblclick', (e) => {
     e.preventDefault(); // Prevent default behavior
@@ -644,7 +584,6 @@ const createPromptItemElement = (text, options = {}) => {
 
   return item;
 };
-
 
 const markPromptAsDone = (index, isDone) => {
   chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
@@ -681,106 +620,111 @@ const resetCollectionPrompts = () => {
 
 // Unified Copy text to clipboard function
 const copyToClipboard = (text, button) => {
-  navigator.clipboard.writeText(text).then(() => {
-    // If a button reference was passed, update its appearance
-    if (button) {
-      button.textContent = 'Copied';
-      button.classList.add('copied');
-      
-      setTimeout(() => {
-        button.textContent = 'Copy';
-        button.classList.remove('copied');
-      }, 2000);
-    }
-    
-    console.log('Text copied to clipboard');
-  }).catch(err => {
-    console.error('Failed to copy text: ', err);
-  });
+  if (document.hasFocus()) {
+    navigator.clipboard.writeText(text).then(() => {
+      if (button) {
+        button.textContent = 'Copied';
+        button.classList.add('copied');
+        setTimeout(() => {
+          button.textContent = 'Copy';
+          button.classList.remove('copied');
+        }, 2000);
+      }
+      console.log('Text copied to clipboard');
+    }).catch(err => {
+      console.error('Failed to copy text:', err);
+    });
+  } else {
+    console.warn('Document is not focused. Attempting to focus...');
+    window.focus();
+    setTimeout(() => {
+      copyToClipboard(text, button); // Retry after focusing
+    }, 100);
+  }
 };
 
 // Shortcut to save clipboard to active collection
 const clipboardToActiveCollection = () => {
-  // Get the button for status update
+  if (!document.hasFocus()) {
+    console.warn('Document is not focused. Attempting to focus...');
+    window.focus();
+    setTimeout(clipboardToActiveCollection, 100); // Retry after focusing
+    return;
+  }
+
   const clipboardToActiveButton = document.getElementById('clipboard-to-active');
   const originalClassName = clipboardToActiveButton.className;
-  
-  // First check if there's an active collection
-  chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
-    const collections = data.promptCollections || [];
-    const activeIndex = data.activeCollectionIndex;
-    
-    // Check if there's an active collection
-    if (typeof activeIndex !== 'number' || !collections[activeIndex]) {
-      // Show temporary message in the button
-      alert('No active collection selected. Please create or activate a collection first.');
+
+  navigator.clipboard.readText().then(text => {
+    if (!text.trim()) {
+      clipboardToActiveButton.textContent = 'Empty clipboard';
+      clipboardToActiveButton.className = originalClassName + ' error-state';
+      setTimeout(() => {
+        clipboardToActiveButton.textContent = '';
+        clipboardToActiveButton.className = originalClassName;
+      }, 2000);
       return;
     }
-    
-    // Get text from clipboard
-    navigator.clipboard.readText()
-      .then(text => {
-        if (!text.trim()) {
-          // Show empty clipboard message
-          clipboardToActiveButton.textContent = 'Empty clipboard';
-          clipboardToActiveButton.className = originalClassName + ' error-state';
-          
-          setTimeout(() => {
-            clipboardToActiveButton.textContent = '';
-            clipboardToActiveButton.className = originalClassName;
-          }, 2000);
-          return;
-        }
-        
-        // Add prompt to active collection
-        collections[activeIndex].prompts.push({
-          text: text,
-          added: Date.now()
-        });
-        collections[activeIndex].updated = Date.now();
-        
-        // Save back to storage
-        chrome.storage.local.set({ promptCollections: collections }, () => {
-          // Show saved message
-          //clipboardToActiveButton.textContent = 'V';
-          //clipboardToActiveButton.className = originalClassName + ' copied';
-          
-          //setTimeout(() => {
-          //  clipboardToActiveButton.textContent = '';
-          //  clipboardToActiveButton.className = originalClassName;
-         //}, 2000);
-          
-          loadCollections();
-          loadBufferItems();
-        });
-      })
-      .catch(err => {
-        console.error('Failed to read clipboard: ', err);
-        // Show error message
-        clipboardToActiveButton.textContent = 'Error';
-        clipboardToActiveButton.className = originalClassName + ' error-state';
-        
-        setTimeout(() => {
-          clipboardToActiveButton.textContent = '';
-          clipboardToActiveButton.className = originalClassName;
-        }, 2000);
+
+    chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
+      const collections = data.promptCollections || [];
+      const activeIndex = data.activeCollectionIndex;
+
+      if (typeof activeIndex !== 'number' || !collections[activeIndex]) {
+        alert('No active collection selected. Please create or activate a collection first.');
+        return;
+      }
+
+      collections[activeIndex].prompts.push({
+        text: text,
+        added: Date.now()
       });
+      collections[activeIndex].updated = Date.now();
+
+      chrome.storage.local.set({ promptCollections: collections }, () => {
+        loadCollections();
+        loadBufferItems();
+      });
+    });
+  }).catch(err => {
+    console.error('Failed to read clipboard:', err);
+    clipboardToActiveButton.textContent = 'Error';
+    clipboardToActiveButton.className = originalClassName + ' error-state';
+    setTimeout(() => {
+      clipboardToActiveButton.textContent = '';
+      clipboardToActiveButton.className = originalClassName;
+    }, 2000);
   });
 };
 
 const clipboardToBuffer = () => {
-  // Get the button for status update
+  if (!document.hasFocus()) {
+    console.warn('Document is not focused. Attempting to focus...');
+    window.focus();
+    setTimeout(clipboardToBuffer, 100); // Retry after focusing
+    return;
+  }
+
   const clipboardToBufferButton = document.getElementById('clipboard-to-buffer');
   const originalClassName = clipboardToBufferButton.className;
 
-  // Get text from clipboard
-  navigator.clipboard.readText()
-    .then(text => {
-      if (!text.trim()) {
-        // Show empty clipboard message
-        clipboardToBufferButton.textContent = 'Empty clipboard';
-        clipboardToBufferButton.className = originalClassName + ' error-state';
+  navigator.clipboard.readText().then(text => {
+    if (!text.trim()) {
+      clipboardToBufferButton.textContent = 'Empty clipboard';
+      clipboardToBufferButton.className = originalClassName + ' error-state';
+      setTimeout(() => {
+        clipboardToBufferButton.textContent = '';
+        clipboardToBufferButton.className = originalClassName;
+      }, 2000);
+      return;
+    }
 
+    chrome.storage.local.get('promptBuffer', data => {
+      let buffer = data.promptBuffer || [];
+
+      if (buffer.some(item => item === text)) {
+        clipboardToBufferButton.textContent = 'Already in buffer';
+        clipboardToBufferButton.className = originalClassName + ' error-state';
         setTimeout(() => {
           clipboardToBufferButton.textContent = '';
           clipboardToBufferButton.className = originalClassName;
@@ -788,91 +732,29 @@ const clipboardToBuffer = () => {
         return;
       }
 
-      // Save prompt to buffer
-      chrome.storage.local.get('promptBuffer', data => {
-        let buffer = data.promptBuffer || [];
+      buffer.push(text);
+      if (buffer.length > 10) {
+        buffer = buffer.slice(buffer.length - 10);
+      }
 
-        // Check if the exact same text already exists in the buffer
-        if (buffer.some(item => item === text)) {
-          clipboardToBufferButton.textContent = 'Already in buffer';
-          clipboardToBufferButton.className = originalClassName + ' error-state';
-
-          setTimeout(() => {
-            clipboardToBufferButton.textContent = '';
-            clipboardToBufferButton.className = originalClassName;
-          }, 2000);
-          return;
-        }
-
-        // Add the text to the buffer
-        buffer.push(text);
-
-        // Limit buffer size to 10 items
-        if (buffer.length > 10) {
-          buffer = buffer.slice(buffer.length - 10);
-        }
-
-        // Save back to storage
-        chrome.storage.local.set({ promptBuffer: buffer }, () => {
-          // Show saved message
-          clipboardToBufferButton.textContent = 'Saved to buffer';
-          clipboardToBufferButton.className = originalClassName + ' success-state';
-
-          setTimeout(() => {
-            clipboardToBufferButton.textContent = '';
-            clipboardToBufferButton.className = originalClassName;
-          }, 2000);
-
-          loadBufferItems(); // Refresh the buffer display
-        });
+      chrome.storage.local.set({ promptBuffer: buffer }, () => {
+        clipboardToBufferButton.textContent = 'Saved to buffer';
+        clipboardToBufferButton.className = originalClassName + ' success-state';
+        setTimeout(() => {
+          clipboardToBufferButton.textContent = '';
+          clipboardToBufferButton.className = originalClassName;
+        }, 2000);
+        loadBufferItems();
       });
-    })
-    .catch(err => {
-      console.error('Failed to read clipboard: ', err);
-      // Show error message
-      clipboardToBufferButton.textContent = 'Error';
-      clipboardToBufferButton.className = originalClassName + ' error-state';
-
-      setTimeout(() => {
-        clipboardToBufferButton.textContent = '';
-        clipboardToBufferButton.className = originalClassName;
-      }, 2000);
     });
-};
-
-// Delete a prompt from buffer
-const deletePrompt = (index) => {
-  chrome.storage.local.get('promptBuffer', data => {
-    let buffer = data.promptBuffer || [];
-    // Convert from display index (reversed) to actual index
-    const actualIndex = buffer.length - 1 - index;
-    
-    buffer.splice(actualIndex, 1);
-    
-    chrome.storage.local.set({ promptBuffer: buffer }, () => {
-      loadBufferItems();
-    });
-  });
-};
-
-const deleteCollectionPrompt = (collectionIndex, promptIndex) => {
-  chrome.storage.local.get('promptCollections', data => {
-    const collections = data.promptCollections || [];
-    if (!collections[collectionIndex]) return;
-
-    const confirmDelete = confirm('Delete this prompt from the collection?');
-    if (!confirmDelete) return;
-
-    // Remove the prompt
-    collections[collectionIndex].prompts.splice(promptIndex, 1);
-
-    // Update the collection's "updated" timestamp
-    collections[collectionIndex].updated = Date.now();
-
-    // Save back to storage
-    chrome.storage.local.set({ promptCollections: collections }, () => {
-      loadBufferItems(); // Refresh the display
-    });
+  }).catch(err => {
+    console.error('Failed to read clipboard:', err);
+    clipboardToBufferButton.textContent = 'Error';
+    clipboardToBufferButton.className = originalClassName + ' error-state';
+    setTimeout(() => {
+      clipboardToBufferButton.textContent = '';
+      clipboardToBufferButton.className = originalClassName;
+    }, 2000);
   });
 };
 
@@ -991,12 +873,79 @@ const editPrompt = (index) => {
   });
 };
 
+const editCollectionPrompt = (collectionIndex, promptIndex) => {
+  chrome.storage.local.get('promptCollections', data => {
+    const collections = data.promptCollections || [];
+    if (!collections[collectionIndex] || !collections[collectionIndex].prompts[promptIndex]) {
+      alert('Prompt not found.');
+      return;
+    }
+    
+    const prompt = collections[collectionIndex].prompts[promptIndex];
+    const promptText = typeof prompt === 'string' ? prompt : prompt.text;
+    
+    // Show dialog to edit the prompt text
+    const newText = window.prompt('Edit prompt:', promptText);
+    if (newText === null) return; // User clicked Cancel
+    
+    // Update the prompt
+    if (typeof prompt === 'string') {
+      collections[collectionIndex].prompts[promptIndex] = newText;
+    } else {
+      collections[collectionIndex].prompts[promptIndex].text = newText;
+    }
+    
+    // Update the collection's "updated" timestamp
+    collections[collectionIndex].updated = Date.now();
+    
+    // Save back to storage
+    chrome.storage.local.set({ promptCollections: collections }, () => {
+      loadBufferItems(); // Refresh the display
+    });
+  });
+};
 
-//////////////////////////
-// COLLECTION FUNCTIONS //
-/////////////////////////
+
+// Delete a prompt from buffer
+const deletePrompt = (index) => {
+  chrome.storage.local.get('promptBuffer', data => {
+    let buffer = data.promptBuffer || [];
+    // Convert from display index (reversed) to actual index
+    const actualIndex = buffer.length - 1 - index;
+    
+    buffer.splice(actualIndex, 1);
+    
+    chrome.storage.local.set({ promptBuffer: buffer }, () => {
+      loadBufferItems();
+    });
+  });
+};
+
+const deleteCollectionPrompt = (collectionIndex, promptIndex) => {
+  chrome.storage.local.get('promptCollections', data => {
+    const collections = data.promptCollections || [];
+    if (!collections[collectionIndex]) return;
+
+    const confirmDelete = confirm('Delete this prompt from the collection?');
+    if (!confirmDelete) return;
+
+    // Remove the prompt
+    collections[collectionIndex].prompts.splice(promptIndex, 1);
+
+    // Update the collection's "updated" timestamp
+    collections[collectionIndex].updated = Date.now();
+
+    // Save back to storage
+    chrome.storage.local.set({ promptCollections: collections }, () => {
+      loadBufferItems(); // Refresh the display
+    });
+  });
+};
 
 
+/* COLLECTION MANAGER TAB FUNCTIONS */
+
+// Save a prompt to an existing or new collection
 const saveToCollection = (text) => {
   chrome.storage.local.get('promptCollections', data => {
     let collections = data.promptCollections || [];
@@ -1109,26 +1058,6 @@ const loadCollections = () => {
       updateActiveCollectionUI(activeIndex);
     }
   });
-};
-
-// Updated Active Collection Function
-const toggleActiveCollectionEditMode = () => {
-  activeCollectionEditMode = !activeCollectionEditMode;
-  
-  // Update the edit button appearance if it exists
-  const editBtn = document.querySelector('.collection-container').previousSibling.querySelector('.toggle-button');
-  if (editBtn) {
-    editBtn.setAttribute('title', activeCollectionEditMode ? 'Done' : 'Edit');
-    editBtn.innerHTML = activeCollectionEditMode ? 
-      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"</path></svg>' : 
-      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>';
-  }
-  
-  loadBufferItems(); // Reload the buffer display with edit controls
-
-  if (activeCollectionEditMode) {
-    setTimeout(makePromptItemsDraggable, 100);
-  }
 };
 
 const updateActiveCollectionUI = (activeIndex) => {
@@ -1357,7 +1286,7 @@ function importCollection() {
   });
 }
 
-// Import collection from JSON file
+// Export collection to JSON / TXT file
 const exportCollection = (collection, type) => {
   if (type === 'json') {
     // Export as JSON
@@ -1419,6 +1348,7 @@ const deleteCollection = (index) => {
     });
   });
 };
+
 ///////////////////////////////////////////
 // BUTTON (event listener FUNCTIONS     //
 /////////////////////////////////////////
@@ -1566,10 +1496,10 @@ function createNewCollection(name) {
   });
 }
 
-//////////////////////////
-// SEARCH FUNCTIONS     //
-/////////////////////////
 
+/* SEARCH FUNCTIONS */
+
+// Perform search in buffer and collections
 const performSearch = (term) => {
   const resultsContainer = document.getElementById('search-results');
   resultsContainer.innerHTML = '<div class="empty-message">Searching...</div>';
@@ -1637,7 +1567,10 @@ const displaySearchResults = (results) => {
     resultsContainer.appendChild(resultItem);
   });
 };
-// Enhanced error handling for storage operations
+
+
+/* Local Storage and Defaults */
+
 function safeStorageOperation(operation, callback) {
   try {
     operation(result => {
@@ -1688,6 +1621,5 @@ function initializeDefaultsIfFirstTime() {
     }
   });
 }
-
 
 //Created by Nikolay Tretyakov
