@@ -1223,38 +1223,40 @@ const makeCollectionActive = (index) => {
   });
 };
 // Import collection from JSON file
-const importCollection =() => {
+const importCollection = () => {
   // Create a hidden file input element
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.accept = '.json';
   fileInput.style.display = 'none';
   document.body.appendChild(fileInput);
-  
+
   // Trigger the file selection dialog
   fileInput.click();
-  
+
   // Handle file selection
-  fileInput.addEventListener('change', function() {
+  fileInput.addEventListener('change', function () {
     if (fileInput.files.length === 0) {
       document.body.removeChild(fileInput);
       return;
     }
-    
+
     const file = fileInput.files[0];
     const reader = new FileReader();
-    
-    reader.onload = function(event) {
+
+    reader.onload = function (event) {
       try {
         const collection = JSON.parse(event.target.result);
-        
+
         // Validate the collection structure
         if (!collection.name || !Array.isArray(collection.prompts)) {
-          alert('Invalid collection format. Collection must have a name and prompts array. Create any collection in the extension first and export to .json to see the format.');
+          alert(
+            'Invalid collection format. Collection must have a name and prompts array. Create any collection in the extension first and export to .json to see the format.'
+          );
           document.body.removeChild(fileInput);
           return;
         }
-        
+
         // Add timestamps if they don't exist
         if (!collection.created) {
           collection.created = Date.now();
@@ -1262,48 +1264,75 @@ const importCollection =() => {
         if (!collection.updated) {
           collection.updated = Date.now();
         }
-        
+
         // Save the imported collection
-        chrome.storage.local.get('promptCollections', function(data) {
-          let collections = data.promptCollections || [];
-          
-          // Check if a collection with the same name already exists
-          const existingCollectionIndex = collections.findIndex(c => c.name === collection.name);
-          
-          if (existingCollectionIndex !== -1) {
-            const overwrite = confirm(`A collection named "${collection.name}" already exists. Overwrite it?`);
-            
-            if (overwrite) {
-              collections[existingCollectionIndex] = collection;
-            } else {
-              // Ask for a new name
-              const newName = prompt('Enter a new name for the imported collection:');
-              if (!newName) {
-                document.body.removeChild(fileInput);
-                return;
+        chrome.storage.local.get('promptCollections', function (data) {
+          try {
+            let collections = data.promptCollections || [];
+
+            // Check if a collection with the same name already exists
+            const existingCollectionIndex = collections.findIndex(
+              (c) => c.name === collection.name
+            );
+
+            if (existingCollectionIndex !== -1) {
+              const overwrite = confirm(
+                `A collection named "${collection.name}" already exists. Overwrite it?`
+              );
+
+              if (overwrite) {
+                collections[existingCollectionIndex] = collection;
+              } else {
+                // Ask for a new name
+                const newName = prompt(
+                  'Enter a new name for the imported collection:'
+                );
+                if (!newName) {
+                  document.body.removeChild(fileInput);
+                  return;
+                }
+                collection.name = newName;
+                collections.push(collection);
               }
-              collection.name = newName;
+            } else {
               collections.push(collection);
             }
-          } else {
-            collections.push(collection);
-          }
-          
-          chrome.storage.local.set({ promptCollections: collections }, function() {
-            alert(`Collection "${collection.name}" imported successfully with ${collection.prompts.length} prompts.`);
-            loadCollections();
+
+            chrome.storage.local.set({ promptCollections: collections }, function () {
+              alert(
+                `Collection "${collection.name}" imported successfully with ${collection.prompts.length} prompts.`
+              );
+              loadCollections();
+              document.body.removeChild(fileInput);
+            });
+          } catch (error) {
+            console.error('Error saving imported collection:', error);
+            alert('An error occurred while saving the imported collection.');
             document.body.removeChild(fileInput);
-          });
+          }
         });
       } catch (error) {
+        console.error('Error importing collection:', error);
         alert('Error importing collection: ' + error.message);
         document.body.removeChild(fileInput);
       }
     };
-    
-    reader.readAsText(file);
+
+    reader.onerror = function (error) {
+      console.error('File reading error:', error);
+      alert('Error reading the file. Please try again.');
+      document.body.removeChild(fileInput);
+    };
+
+    try {
+      reader.readAsText(file);
+    } catch (error) {
+      console.error('Error initializing file reading:', error);
+      alert('Error initializing file reading. Please try again.');
+      document.body.removeChild(fileInput);
+    }
   });
-}
+};
 // Export collection to JSON / TXT file
 const exportCollection = (collection, type) => {
   if (type === 'json') {
@@ -1330,6 +1359,31 @@ const exportCollection = (collection, type) => {
     console.error('Unsupported export type:', type);
   }
 };
+
+//make backup for all collections, console only
+
+const exportAllCollections = () => {
+  chrome.storage.local.get('promptCollections', (data) => {
+    const collections = data.promptCollections || [];
+
+    if (collections.length === 0) {
+      console.log('No collections found to export.');
+      return;
+    }
+    collections.forEach((collection) => {
+      const jsonDataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(collection));
+      const jsonDownloadAnchorNode = document.createElement('a');
+      jsonDownloadAnchorNode.setAttribute("href", jsonDataStr);
+      jsonDownloadAnchorNode.setAttribute("download", `${collection.name}.json`);
+      document.body.appendChild(jsonDownloadAnchorNode); // Required for Firefox
+      jsonDownloadAnchorNode.click();
+      jsonDownloadAnchorNode.remove();
+    });
+
+    console.log(`${collections.length} collections exported successfully.`);
+  });
+};
+
 // Delete collection
 const deleteCollection = (index) => {
   chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {

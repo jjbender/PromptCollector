@@ -358,6 +358,7 @@ button:disabled,
   height: 32px;
 }
 
+
 /* Button rows */
 .button-row, .prompt-actions {
   display: flex;
