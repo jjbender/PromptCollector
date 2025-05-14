@@ -1,3 +1,96 @@
+// dark theme toggle
+
+document.addEventListener('DOMContentLoaded', function () {
+  const THEME_KEY = 'theme';
+
+  // Create the theme toggle button
+  const createToggleButton = () => {
+    const button = document.createElement('button');
+    button.id = 'theme-toggle';
+    button.className = 'action-button toggle-button';
+    button.setAttribute('aria-label', 'Toggle dark mode');
+
+    const container = document.getElementById('theme-toggle-container');
+    if (container) {
+      container.appendChild(button);
+    } else {
+      console.error('Theme toggle container not found');
+    }
+
+    return button;
+  };
+
+  // Get the current theme (explicit or system preference)
+  const getCurrentTheme = () => {
+    const storedTheme = localStorage.getItem(THEME_KEY);
+    if (storedTheme === 'light' || storedTheme === 'dark') {
+      return storedTheme; // Return explicitly set theme
+    }
+    // Fallback to system preference
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  };
+
+  // Apply the theme to the document
+  const applyTheme = (theme) => {
+    if (theme === 'dark') {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  };
+
+  // Save the theme to localStorage
+  const saveTheme = (theme) => {
+    localStorage.setItem(THEME_KEY, theme);
+  };
+
+  // Toggle between light and dark themes
+  const toggleTheme = (button) => {
+    const currentTheme = getCurrentTheme();
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    applyTheme(newTheme);
+    saveTheme(newTheme);
+    updateIcon(button, newTheme);
+  };
+
+  // Update the button icon based on the theme
+  const updateIcon = (button, theme) => {
+    const isDark = theme === 'dark';
+    button.innerHTML = isDark
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+         </svg>` // Sun icon for light mode
+      : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+         </svg>`; // Moon icon for dark mode
+  };
+
+  // React to system theme changes if no explicit theme is set
+  const handleSystemThemeChange = (e) => {
+    if (!localStorage.getItem(THEME_KEY)) {
+      const newTheme = e.matches ? 'dark' : 'light';
+      applyTheme(newTheme);
+      updateIcon(button, newTheme);
+    }
+  };
+
+  // Initialize the theme toggle functionality
+  const button = createToggleButton();
+  const initialTheme = getCurrentTheme();
+  applyTheme(initialTheme);
+  updateIcon(button, initialTheme);
+
+  // Add event listener for the toggle button
+  button.addEventListener('click', () => toggleTheme(button));
+
+  // Listen for system theme changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', handleSystemThemeChange);
+});
+
+
 // Initialize the extension 
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize the extension
@@ -605,30 +698,115 @@ const resetCollectionPrompts = () => {
 };
 /* WORKPLACE TAB - BUTTON FUNCTIONS */
 
-// Unified Copy text to clipboard function
-const copyToClipboard = (text, button) => {
-  if (document.hasFocus()) {
-    navigator.clipboard.writeText(text).then(() => {
-      if (button) {
-        button.textContent = 'Copied';
-        button.classList.add('copied');
-        setTimeout(() => {
-          button.textContent = 'Copy';
-          button.classList.remove('copied');
-        }, 2000);
-      }
-      console.log('Text copied to clipboard');
-    }).catch(err => {
-      console.error('Failed to copy text:', err);
-    });
-  } else {
-    console.warn('Document is not focused. Attempting to focus...');
-    window.focus();
-    setTimeout(() => {
-      copyToClipboard(text, button); // Retry after focusing
-    }, 100);
+// Permission check utility
+const checkPermission = async (permission) => {
+  try {
+    const result = await navigator.permissions.query({ name: permission });
+    return result.state === 'granted';
+  } catch (error) {
+    console.error(`Permission check failed for ${permission}:`, error);
+    return false;
   }
 };
+
+// Unified Copy text to clipboard function with permission check
+const copyToClipboard = async (text, button) => {
+  if (!document.hasFocus()) {
+    console.warn('Document is not focused. Attempting to focus...');
+    window.focus();
+    setTimeout(() => copyToClipboard(text, button), 100);
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    if (button) {
+      button.textContent = 'Copied';
+      button.classList.add('copied');
+      setTimeout(() => {
+        button.textContent = 'Copy';
+        button.classList.remove('copied');
+      }, 2000);
+    }
+    console.log('Text copied to clipboard');
+  } catch (err) {
+    console.error('Failed to copy text:', err);
+    if (button) {
+      button.textContent = 'Error';
+      button.classList.add('error');
+      setTimeout(() => {
+        button.textContent = 'Copy';
+        button.classList.remove('error');
+      }, 2000);
+    }
+  }
+};
+
+// Enhanced clipboard to buffer with permission check
+const clipboardToBuffer = async () => {
+  const clipboardToBufferButton = document.getElementById('clipboard-to-buffer');
+  const originalClassName = clipboardToBufferButton.className;
+
+  try {
+    const text = await navigator.clipboard.readText();
+    
+    if (!text.trim()) {
+      clipboardToBufferButton.textContent = 'Empty clipboard';
+      clipboardToBufferButton.className = originalClassName + ' error-state';
+      setTimeout(() => {
+        clipboardToBufferButton.textContent = '';
+        clipboardToBufferButton.className = originalClassName;
+      }, 2000);
+      return;
+    }
+
+    // Safe storage operation with error handling
+    chrome.storage.local.get('promptBuffer', data => {
+      if (chrome.runtime.lastError) {
+        throw new Error('Storage error: ' + chrome.runtime.lastError.message);
+      }
+
+      let buffer = data.promptBuffer || [];
+
+      if (buffer.some(item => item === text)) {
+        clipboardToBufferButton.textContent = 'Already in buffer';
+        clipboardToBufferButton.className = originalClassName + ' error-state';
+        setTimeout(() => {
+          clipboardToBufferButton.textContent = '';
+          clipboardToBufferButton.className = originalClassName;
+        }, 2000);
+        return;
+      }
+
+      buffer.push(text);
+      if (buffer.length > 10) {
+        buffer = buffer.slice(buffer.length - 10);
+      }
+
+      chrome.storage.local.set({ promptBuffer: buffer }, () => {
+        if (chrome.runtime.lastError) {
+          throw new Error('Storage error: ' + chrome.runtime.lastError.message);
+        }
+        clipboardToBufferButton.textContent = 'Saved to buffer';
+        clipboardToBufferButton.className = originalClassName + ' success-state';
+        setTimeout(() => {
+          clipboardToBufferButton.textContent = '';
+          clipboardToBufferButton.className = originalClassName;
+        }, 2000);
+        loadBufferItems();
+      });
+    });
+  } catch (err) {
+    console.error('Failed to read clipboard:', err);
+    clipboardToBufferButton.textContent = 'Error';
+    clipboardToBufferButton.className = originalClassName + ' error-state';
+    setTimeout(() => {
+      clipboardToBufferButton.textContent = '';
+      clipboardToBufferButton.className = originalClassName;
+    }, 2000);
+  }
+};
+
 // Shortcut to save clipboard to active collection
 const clipboardToActiveCollection = () => {
   if (!document.hasFocus()) {
@@ -682,66 +860,7 @@ const clipboardToActiveCollection = () => {
     }, 2000);
   });
 };
-const clipboardToBuffer = () => {
-  if (!document.hasFocus()) {
-    console.warn('Document is not focused. Attempting to focus...');
-    window.focus();
-    setTimeout(clipboardToBuffer, 100); // Retry after focusing
-    return;
-  }
 
-  const clipboardToBufferButton = document.getElementById('clipboard-to-buffer');
-  const originalClassName = clipboardToBufferButton.className;
-
-  navigator.clipboard.readText().then(text => {
-    if (!text.trim()) {
-      clipboardToBufferButton.textContent = 'Empty clipboard';
-      clipboardToBufferButton.className = originalClassName + ' error-state';
-      setTimeout(() => {
-        clipboardToBufferButton.textContent = '';
-        clipboardToBufferButton.className = originalClassName;
-      }, 2000);
-      return;
-    }
-
-    chrome.storage.local.get('promptBuffer', data => {
-      let buffer = data.promptBuffer || [];
-
-      if (buffer.some(item => item === text)) {
-        clipboardToBufferButton.textContent = 'Already in buffer';
-        clipboardToBufferButton.className = originalClassName + ' error-state';
-        setTimeout(() => {
-          clipboardToBufferButton.textContent = '';
-          clipboardToBufferButton.className = originalClassName;
-        }, 2000);
-        return;
-      }
-
-      buffer.push(text);
-      if (buffer.length > 10) {
-        buffer = buffer.slice(buffer.length - 10);
-      }
-
-      chrome.storage.local.set({ promptBuffer: buffer }, () => {
-        clipboardToBufferButton.textContent = 'Saved to buffer';
-        clipboardToBufferButton.className = originalClassName + ' success-state';
-        setTimeout(() => {
-          clipboardToBufferButton.textContent = '';
-          clipboardToBufferButton.className = originalClassName;
-        }, 2000);
-        loadBufferItems();
-      });
-    });
-  }).catch(err => {
-    console.error('Failed to read clipboard:', err);
-    clipboardToBufferButton.textContent = 'Error';
-    clipboardToBufferButton.className = originalClassName + ' error-state';
-    setTimeout(() => {
-      clipboardToBufferButton.textContent = '';
-      clipboardToBufferButton.className = originalClassName;
-    }, 2000);
-  });
-};
 // Edit a buffer prompt via clipboard window
 const editPrompt = (index) => {
   chrome.storage.local.get('promptBuffer', data => {
@@ -1242,6 +1361,14 @@ const importCollection = () => {
     }
 
     const file = fileInput.files[0];
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File is too large. Maximum size is 5MB.');
+      document.body.removeChild(fileInput);
+      return;
+    }
+
     const reader = new FileReader();
 
     reader.onload = function (event) {
@@ -1249,24 +1376,39 @@ const importCollection = () => {
         const collection = JSON.parse(event.target.result);
 
         // Validate the collection structure
-        if (!collection.name || !Array.isArray(collection.prompts)) {
-          alert(
-            'Invalid collection format. Collection must have a name and prompts array. Create any collection in the extension first and export to .json to see the format.'
-          );
-          document.body.removeChild(fileInput);
-          return;
+        if (!validateCollectionStructure(collection)) {
+          throw new Error('Invalid collection format');
         }
 
         // Add timestamps if they don't exist
-        if (!collection.created) {
-          collection.created = Date.now();
-        }
-        if (!collection.updated) {
-          collection.updated = Date.now();
-        }
+        const now = Date.now();
+        collection.created = collection.created || now;
+        collection.updated = collection.updated || now;
+
+        // Validate and sanitize prompts
+        collection.prompts = collection.prompts.map(prompt => {
+          if (typeof prompt === 'string') {
+            return {
+              text: prompt.trim(),
+              added: now,
+              done: false
+            };
+          } else if (typeof prompt === 'object' && prompt !== null) {
+            return {
+              text: (prompt.text || '').trim(),
+              added: prompt.added || now,
+              done: !!prompt.done // Convert to boolean
+            };
+          }
+          throw new Error('Invalid prompt format');
+        });
 
         // Save the imported collection
         chrome.storage.local.get('promptCollections', function (data) {
+          if (chrome.runtime.lastError) {
+            throw new Error('Storage error: ' + chrome.runtime.lastError.message);
+          }
+
           try {
             let collections = data.promptCollections || [];
 
@@ -1277,19 +1419,20 @@ const importCollection = () => {
 
             if (existingCollectionIndex !== -1) {
               const overwrite = confirm(
-                `A collection named "${collection.name}" already exists. Overwrite it?`
+                `A collection named "${collection.name}" already exists. Do you want to:\n` +
+                '- Click OK to overwrite\n' +
+                '- Click Cancel to import as a new collection with a different name'
               );
 
               if (overwrite) {
                 collections[existingCollectionIndex] = collection;
               } else {
                 // Ask for a new name
-                const newName = prompt(
-                  'Enter a new name for the imported collection:'
-                );
-                if (!newName) {
-                  document.body.removeChild(fileInput);
-                  return;
+                let newName = collection.name;
+                let counter = 1;
+                while (collections.some(c => c.name === newName)) {
+                  newName = `${collection.name} (${counter})`;
+                  counter++;
                 }
                 collection.name = newName;
                 collections.push(collection);
@@ -1299,6 +1442,9 @@ const importCollection = () => {
             }
 
             chrome.storage.local.set({ promptCollections: collections }, function () {
+              if (chrome.runtime.lastError) {
+                throw new Error('Storage error: ' + chrome.runtime.lastError.message);
+              }
               alert(
                 `Collection "${collection.name}" imported successfully with ${collection.prompts.length} prompts.`
               );
@@ -1307,7 +1453,7 @@ const importCollection = () => {
             });
           } catch (error) {
             console.error('Error saving imported collection:', error);
-            alert('An error occurred while saving the imported collection.');
+            alert('Error saving collection: ' + error.message);
             document.body.removeChild(fileInput);
           }
         });
@@ -1328,11 +1474,52 @@ const importCollection = () => {
       reader.readAsText(file);
     } catch (error) {
       console.error('Error initializing file reading:', error);
-      alert('Error initializing file reading. Please try again.');
+      alert('Error reading file. Please try again.');
       document.body.removeChild(fileInput);
     }
   });
 };
+
+// Validate collection structure
+const validateCollectionStructure = (collection) => {
+  // Check if collection is an object
+  if (!collection || typeof collection !== 'object') {
+    throw new Error('Collection must be a valid object');
+  }
+
+  // Check required fields
+  if (!collection.name || typeof collection.name !== 'string' || collection.name.trim().length === 0) {
+    throw new Error('Collection must have a valid name');
+  }
+
+  // Validate prompts array
+  if (!Array.isArray(collection.prompts)) {
+    throw new Error('Collection must have a prompts array');
+  }
+
+  // Check if prompts array is not too large (e.g., max 1000 prompts)
+  if (collection.prompts.length > 1000) {
+    throw new Error('Collection has too many prompts (maximum 1000)');
+  }
+
+  // Validate each prompt
+  collection.prompts.forEach((prompt, index) => {
+    if (typeof prompt === 'string') {
+      if (prompt.trim().length === 0) {
+        throw new Error(`Empty prompt at index ${index}`);
+      }
+    } else if (typeof prompt === 'object' && prompt !== null) {
+      if (!prompt.text || typeof prompt.text !== 'string' || prompt.text.trim().length === 0) {
+        throw new Error(`Invalid prompt format at index ${index}`);
+      }
+    } else {
+      throw new Error(`Invalid prompt type at index ${index}`);
+    }
+  });
+
+  return true;
+};
+
 // Export collection to JSON / TXT file
 const exportCollection = (collection, type) => {
   if (type === 'json') {
@@ -1428,13 +1615,13 @@ function setupEventListeners() {
     document.getElementById('help-link').addEventListener('click', function(event) {
       event.preventDefault(); // Prevent the default anchor behavior
       const helpUrl = "https://balsam-copper-ded.notion.site/Prompt-Collector-1d6537cd5c7980f888a3d7a02b3d8205";
-      chrome.tabs.create({ url: helpUrl });
+      window.open(helpUrl, '_blank');
     });
 
     document.getElementById('prompt-link').addEventListener('click', function(event) {
       event.preventDefault(); // Prevent the default anchor behavior
       const promptUrl = "https://balsam-copper-ded.notion.site/Prompt-Collections-1d9537cd5c7980339dc5dbbe14258ed2";
-      chrome.tabs.create({ url: promptUrl });
+      window.open(promptUrl, '_blank');
     });
   
   // Save to buffer button for NEW PROMPT ONLY
@@ -1630,4 +1817,8 @@ function initializeDefaultsIfFirstTime() {
     }
   });
 }
+
+
+
+
 // Prompt Collector. Created by Nikolay Tretyakov May 2025
