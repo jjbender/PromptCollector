@@ -1,5 +1,4 @@
 // dark theme toggle
-
 document.addEventListener('DOMContentLoaded', function () {
   const THEME_KEY = 'theme';
 
@@ -21,13 +20,19 @@ document.addEventListener('DOMContentLoaded', function () {
   };
 
   // Get the current theme (explicit or system preference)
-  const getCurrentTheme = () => {
-    const storedTheme = localStorage.getItem(THEME_KEY);
-    if (storedTheme === 'light' || storedTheme === 'dark') {
-      return storedTheme; // Return explicitly set theme
+  const getCurrentTheme = async () => {
+    try {
+      const data = await StorageManager.get(StorageManager.keys.THEME);
+      const storedTheme = data[StorageManager.keys.THEME];
+      if (storedTheme === 'light' || storedTheme === 'dark') {
+        return storedTheme; // Return explicitly set theme
+      }
+      // Fallback to system preference
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } catch (error) {
+      console.error('Error getting theme:', error);
+      return 'light'; // Safe default
     }
-    // Fallback to system preference
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
 
   // Apply the theme to the document
@@ -40,17 +45,25 @@ document.addEventListener('DOMContentLoaded', function () {
   };
 
   // Save the theme to localStorage
-  const saveTheme = (theme) => {
-    localStorage.setItem(THEME_KEY, theme);
+  const saveTheme = async (theme) => {
+    try {
+      await StorageManager.set({ [StorageManager.keys.THEME]: theme });
+    } catch (error) {
+      console.error('Error saving theme:', error);
+    }
   };
 
   // Toggle between light and dark themes
-  const toggleTheme = (button) => {
-    const currentTheme = getCurrentTheme();
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    applyTheme(newTheme);
-    saveTheme(newTheme);
-    updateIcon(button, newTheme);
+  const toggleTheme = async (button) => {
+    try {
+      const currentTheme = await getCurrentTheme();
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      applyTheme(newTheme);
+      await saveTheme(newTheme);
+      updateIcon(button, newTheme);
+    } catch (error) {
+      console.error('Error toggling theme:', error);
+    }
   };
 
   // Update the button icon based on the theme
@@ -111,7 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Update bufferToggleState in storage
   chrome.storage.local.set({ bufferToggleState: false }, () => {
-    console.log('Initial buffer toggle state set to hidden.');
   });
 });
 // Tab functionality
@@ -134,25 +146,32 @@ const initTabs = () => {
 };
 /* Workplace TAB render headers, buffer, active collection,  prompt items */
 // Load buffer items from storage
-const loadBufferItems = () => {
-  chrome.storage.local.get(['promptBuffer', 'promptCollections', 'activeCollectionIndex', 'collectionToggleState', 'bufferToggleState'], data => {
-    const bufferList = document.getElementById('buffer-list');
-    const buffer = data.promptBuffer || [];
-    const collections = data.promptCollections || [];
-    const activeIndex = data.activeCollectionIndex;
+const loadBufferItems = async () => {
+  try {
+    const [buffer, collections, activeIndex, toggleStates] = await Promise.all([
+      StorageManager.getBuffer(),
+      StorageManager.getCollections(),
+      StorageManager.getActiveCollectionIndex(),
+      StorageManager.getToggleStates()
+    ]);
 
+    const bufferList = document.getElementById('buffer-list');
     bufferList.innerHTML = '';
+
     if (buffer.length > 0) {
-      renderBufferItems(buffer, bufferList, data.bufferToggleState !== false);
+      renderBufferItems(buffer, bufferList, toggleStates.bufferToggle !== false);
     } else {
       bufferList.innerHTML = '<div class="empty-message">No prompts saved in buffer yet</div>';
     }
     
-    // Render active collection separately (not duplicated in buffer list)
     if (typeof activeIndex === 'number' && collections[activeIndex]) {
-      renderActiveCollection(collections, activeIndex, bufferList, data.collectionToggleState !== false);
+      renderActiveCollection(collections, activeIndex, bufferList, toggleStates.collectionToggle !== false);
     }
-  });
+  } catch (error) {
+    console.error('Error loading items:', error);
+    const bufferList = document.getElementById('buffer-list');
+    bufferList.innerHTML = '<div class="error-message">Error loading items. Please try again.</div>';
+  }
 };
 const renderBufferItems = (buffer, bufferList,bufferToggleState) => {
   const heading = createBufferHeading(bufferToggleState);
@@ -751,60 +770,28 @@ const clipboardToBuffer = async () => {
     const text = await navigator.clipboard.readText();
     
     if (!text.trim()) {
-      clipboardToBufferButton.textContent = 'Empty clipboard';
-      clipboardToBufferButton.className = originalClassName + ' error-state';
-      setTimeout(() => {
-        clipboardToBufferButton.textContent = '';
-        clipboardToBufferButton.className = originalClassName;
-      }, 2000);
+      updateButtonState(clipboardToBufferButton, 'Empty clipboard', 'error-state');
       return;
     }
 
-    // Safe storage operation with error handling
-    chrome.storage.local.get('promptBuffer', data => {
-      if (chrome.runtime.lastError) {
-        throw new Error('Storage error: ' + chrome.runtime.lastError.message);
-      }
-
-      let buffer = data.promptBuffer || [];
-
-      if (buffer.some(item => item === text)) {
-        clipboardToBufferButton.textContent = 'Already in buffer';
-        clipboardToBufferButton.className = originalClassName + ' error-state';
-        setTimeout(() => {
-          clipboardToBufferButton.textContent = '';
-          clipboardToBufferButton.className = originalClassName;
-        }, 2000);
-        return;
-      }
-
-      buffer.push(text);
-      if (buffer.length > 10) {
-        buffer = buffer.slice(buffer.length - 10);
-      }
-
-      chrome.storage.local.set({ promptBuffer: buffer }, () => {
-        if (chrome.runtime.lastError) {
-          throw new Error('Storage error: ' + chrome.runtime.lastError.message);
-        }
-        clipboardToBufferButton.textContent = 'Saved to buffer';
-        clipboardToBufferButton.className = originalClassName + ' success-state';
-        setTimeout(() => {
-          clipboardToBufferButton.textContent = '';
-          clipboardToBufferButton.className = originalClassName;
-        }, 2000);
-        loadBufferItems();
-      });
-    });
-  } catch (err) {
-    console.error('Failed to read clipboard:', err);
-    clipboardToBufferButton.textContent = 'Error';
-    clipboardToBufferButton.className = originalClassName + ' error-state';
-    setTimeout(() => {
-      clipboardToBufferButton.textContent = '';
-      clipboardToBufferButton.className = originalClassName;
-    }, 2000);
+    await StorageManager.addToBuffer(text);
+    updateButtonState(clipboardToBufferButton, 'Saved to buffer', 'success-state');
+    loadBufferItems();
+  } catch (error) {
+    console.error('Failed to handle clipboard:', error);
+    updateButtonState(clipboardToBufferButton, 'Error', 'error-state');
   }
+};
+
+// Helper function for button state updates
+const updateButtonState = (button, text, className, duration = 2000) => {
+  const originalClassName = button.className;
+  button.textContent = text;
+  button.className = originalClassName + ' ' + className;
+  setTimeout(() => {
+    button.textContent = '';
+    button.className = originalClassName;
+  }, duration);
 };
 
 // Shortcut to save clipboard to active collection
@@ -1008,18 +995,19 @@ const editCollectionPrompt = (collectionIndex, promptIndex) => {
   });
 };
 // Delete a prompt from buffer
-const deletePrompt = (index) => {
-  chrome.storage.local.get('promptBuffer', data => {
-    let buffer = data.promptBuffer || [];
+const deletePrompt = async (index) => {
+  try {
+    const buffer = await StorageManager.getBuffer();
     // Convert from display index (reversed) to actual index
     const actualIndex = buffer.length - 1 - index;
     
     buffer.splice(actualIndex, 1);
-    
-    chrome.storage.local.set({ promptBuffer: buffer }, () => {
-      loadBufferItems();
-    });
-  });
+    await StorageManager.set({ [StorageManager.keys.BUFFER]: buffer });
+    loadBufferItems();
+  } catch (error) {
+    console.error('Error deleting prompt:', error);
+    alert('Failed to delete prompt. Please try again.');
+  }
 };
 const deleteCollectionPrompt = (collectionIndex, promptIndex) => {
   chrome.storage.local.get('promptCollections', data => {
@@ -1042,34 +1030,15 @@ const deleteCollectionPrompt = (collectionIndex, promptIndex) => {
   });
 };
 // Save text to buffer
-const saveToBuffer =(text) => {
-  safeStorageOperation(
-    callback => chrome.storage.local.get('promptBuffer', callback),
-    data => {
-      let buffer = data.promptBuffer || [];
-      
-      // Check if the exact same text already exists in the buffer
-      if (buffer.some(item => item === text)) {
-        alert('This text already exists in the buffer.');
-        return;
-      }
-      
-      buffer.push(text);
-      
-      if (buffer.length > 10) {
-        buffer = buffer.slice(buffer.length - 10);
-      }
-      
-      safeStorageOperation(
-        callback => chrome.storage.local.set({ promptBuffer: buffer }, callback),
-        () => {
-          // Explicitly call loadBufferItems here to ensure the UI updates
-          loadBufferItems();
-        }
-      );
-    }
-  );
-}
+const saveToBuffer = async (text) => {
+  try {
+    await StorageManager.addToBuffer(text);
+    loadBufferItems(); // Refresh display
+  } catch (error) {
+    console.error('Error saving to buffer:', error);
+    alert(error.message);
+  }
+};
 // Save a prompt to an existing or new collection
 const saveToCollection = (text) => {
   chrome.storage.local.get('promptCollections', data => {
@@ -1159,11 +1128,14 @@ const saveToCollection = (text) => {
 
 /* COLLECTION MANAGER TAB FUNCTIONS */
 // Load collections from storage
-const loadCollections = () => {
-  chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
+const loadCollections = async () => {
+  try {
+    const [collections, activeIndex] = await Promise.all([
+      StorageManager.getCollections(),
+      StorageManager.getActiveCollectionIndex()
+    ]);
+    
     const collectionsList = document.getElementById('collections-list');
-    const collections = data.promptCollections || [];
-    const activeIndex = data.activeCollectionIndex;
     
     // Clear current list
     collectionsList.innerHTML = '';
@@ -1183,7 +1155,11 @@ const loadCollections = () => {
     if (typeof activeIndex === 'number') {
       updateActiveCollectionUI(activeIndex);
     }
-  });
+  } catch (error) {
+    console.error('Error loading collections:', error);
+    const collectionsList = document.getElementById('collections-list');
+    collectionsList.innerHTML = '<div class="error-message">Error loading collections. Please try again.</div>';
+  }
 };
 const updateActiveCollectionUI = (activeIndex) => {
   // Get all collection items
@@ -1214,26 +1190,23 @@ const updateActiveCollectionUI = (activeIndex) => {
     }
   });
 };
-// Автор Николай Третьяков
 // Create a new collection
-const createNewCollection = (name) => {
-  chrome.storage.local.get('promptCollections', function(data) {
-    let collections = data.promptCollections || [];
-    
+const createNewCollection = async (name) => {
+  try {
     const newCollection = {
       name: name,
       created: Date.now(),
       updated: Date.now(),
       prompts: []
     };
-    
-    collections.push(newCollection);
-    
-    chrome.storage.local.set({ promptCollections: collections }, function() {
-      loadCollections();
-    });
-  });
-}
+
+    await StorageManager.addCollection(newCollection);
+    loadCollections();
+  } catch (error) {
+    console.error('Error creating collection:', error);
+    alert('Failed to create collection: ' + error.message);
+  }
+};
 const createCollectionItem = (collection, index) => {
   const item = document.createElement('div');
   item.className = 'collection-item';
@@ -1327,19 +1300,16 @@ const renameCollection = (index) => {
     });
   });
 };
-const makeCollectionActive = (index) => {
-  // Reset edit mode
-  activeCollectionEditMode = false;
-  
-  // When making a collection active, we'll default to expanded state
-  chrome.storage.local.set({ 
-    activeCollectionIndex: index,
-    collectionToggleState: true  // Default to expanded when changing collections
-  }, () => {
-    // Update the UI to reflect the change immediately
+const makeCollectionActive = async (index) => {
+  try {
+    await StorageManager.setActiveCollectionIndex(index);
+    await StorageManager.setToggleState(StorageManager.keys.COLLECTION_TOGGLE, true);
     updateActiveCollectionUI(index);
-    loadBufferItems(); // Re-render Buffer tab
-  });
+    loadBufferItems();
+  } catch (error) {
+    console.error('Error activating collection:', error);
+    alert('Failed to activate collection. Please try again.');
+  }
 };
 // Import collection from JSON file
 const importCollection = () => {
@@ -1419,9 +1389,9 @@ const importCollection = () => {
 
             if (existingCollectionIndex !== -1) {
               const overwrite = confirm(
-                `A collection named "${collection.name}" already exists. Do you want to:\n` +
-                '- Click OK to overwrite\n' +
-                '- Click Cancel to import as a new collection with a different name'
+                `A collection named "${collection.name}" already exists. Do you want to overwrite the collection or import wit a different name?\n` +
+                '- Overwrite(deletes existing collection)\n' +
+                '- Import as new collection'
               );
 
               if (overwrite) {
@@ -1572,39 +1542,41 @@ const exportAllCollections = () => {
 };
 
 // Delete collection
-const deleteCollection = (index) => {
-  chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
-    let collections = data.promptCollections || [];
-    const activeIndex = data.activeCollectionIndex;
-    
-    // Get collection name and prompt count for the alert message
+const deleteCollection = async (index) => {
+  try {
+    const [collections, activeIndex] = await Promise.all([
+      StorageManager.getCollections(),
+      StorageManager.getActiveCollectionIndex()
+    ]);
+
     const collectionToDelete = collections[index];
     if (!collectionToDelete) return;
-    
+
     const promptCount = collectionToDelete.prompts.length;
     const warningMessage = `You are about to delete "${collectionToDelete.name}" collection with ${promptCount} prompts. This action cannot be undone.\n\nDo you want to continue?`;
-    
+
     const confirmDelete = confirm(warningMessage);
     if (!confirmDelete) return;
-    
+
     collections.splice(index, 1);
-    
+
     // Update storage with new data
-    const updates = { promptCollections: collections };
-    
-    // If the deleted collection was active, remove the active index
+    const updates = { [StorageManager.keys.COLLECTIONS]: collections };
+
+    // Handle active collection index
     if (activeIndex === index) {
-      updates.activeCollectionIndex = null;
+      updates[StorageManager.keys.ACTIVE_INDEX] = null;
     } else if (activeIndex > index) {
-      // If the active collection is after the deleted one, adjust its index
-      updates.activeCollectionIndex = activeIndex - 1;
+      updates[StorageManager.keys.ACTIVE_INDEX] = activeIndex - 1;
     }
-    
-    chrome.storage.local.set(updates, () => {
-      loadCollections();
-      loadBufferItems(); // Refresh buffer view if active collection changed
-    });
-  });
+
+    await StorageManager.set(updates);
+    loadCollections();
+    loadBufferItems();
+  } catch (error) {
+    console.error('Error deleting collection:', error);
+    alert('Failed to delete collection. Please try again.');
+  }
 };
 /* BUTTON (event listener FUNCTIONS */
 // Set up event listeners
@@ -1818,7 +1790,151 @@ function initializeDefaultsIfFirstTime() {
   });
 }
 
+// Storage Manager for safer operations
+const StorageManager = {
+  // Storage keys
+  keys: {
+    BUFFER: 'promptBuffer',
+    COLLECTIONS: 'promptCollections',
+    ACTIVE_INDEX: 'activeCollectionIndex',
+    COLLECTION_TOGGLE: 'collectionToggleState',
+    BUFFER_TOGGLE: 'bufferToggleState',
+    THEME: 'theme'
+  },
 
+  // Storage limits
+  limits: {
+    MAX_BUFFER_SIZE: 10,
+    MAX_COLLECTION_SIZE: 1000,
+    MAX_COLLECTION_NAME_LENGTH: 100
+  },
 
+  async get(keys) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.storage.local.get(keys, (result) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error('Storage error: ' + chrome.runtime.lastError.message));
+            return;
+          }
+          resolve(result);
+        });
+      } catch (error) {
+        reject(new Error('Storage operation failed: ' + error.message));
+      }
+    });
+  },
+
+  async set(data) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.storage.local.set(data, () => {
+          if (chrome.runtime.lastError) {
+            reject(new Error('Storage error: ' + chrome.runtime.lastError.message));
+            return;
+          }
+          resolve();
+        });
+      } catch (error) {
+        reject(new Error('Storage operation failed: ' + error.message));
+      }
+    });
+  },
+
+  // Buffer operations
+  async getBuffer() {
+    const data = await this.get(this.keys.BUFFER);
+    return data[this.keys.BUFFER] || [];
+  },
+
+  async addToBuffer(text) {
+    if (!text || typeof text !== 'string') {
+      throw new Error('Invalid text for buffer');
+    }
+
+    let buffer = await this.getBuffer();
+    
+    // Check if text already exists
+    if (buffer.includes(text)) {
+      throw new Error('Text already exists in buffer');
+    }
+
+    buffer.push(text);
+    
+    // Maintain buffer size limit
+    if (buffer.length > this.limits.MAX_BUFFER_SIZE) {
+      buffer = buffer.slice(-this.limits.MAX_BUFFER_SIZE);
+    }
+
+    await this.set({ [this.keys.BUFFER]: buffer });
+    return buffer;
+  },
+
+  // Collection operations
+  async getCollections() {
+    const data = await this.get(this.keys.COLLECTIONS);
+    return data[this.keys.COLLECTIONS] || [];
+  },
+
+  async addCollection(collection) {
+    if (!this.validateCollection(collection)) {
+      throw new Error('Invalid collection format');
+    }
+
+    const collections = await this.getCollections();
+    collections.push(collection);
+    await this.set({ [this.keys.COLLECTIONS]: collections });
+    return collections;
+  },
+
+  validateCollection(collection) {
+    if (!collection || typeof collection !== 'object') {
+      return false;
+    }
+
+    if (!collection.name || 
+        typeof collection.name !== 'string' || 
+        collection.name.length > this.limits.MAX_COLLECTION_NAME_LENGTH) {
+      return false;
+    }
+
+    if (!Array.isArray(collection.prompts) || 
+        collection.prompts.length > this.limits.MAX_COLLECTION_SIZE) {
+      return false;
+    }
+
+    return true;
+  },
+
+  // Active collection management
+  async getActiveCollectionIndex() {
+    const data = await this.get(this.keys.ACTIVE_INDEX);
+    return data[this.keys.ACTIVE_INDEX];
+  },
+
+  async setActiveCollectionIndex(index) {
+    const collections = await this.getCollections();
+    if (index !== null && (index < 0 || index >= collections.length)) {
+      throw new Error('Invalid collection index');
+    }
+    await this.set({ [this.keys.ACTIVE_INDEX]: index });
+  },
+
+  // Toggle states
+  async getToggleStates() {
+    const data = await this.get([this.keys.COLLECTION_TOGGLE, this.keys.BUFFER_TOGGLE]);
+    return {
+      collectionToggle: data[this.keys.COLLECTION_TOGGLE],
+      bufferToggle: data[this.keys.BUFFER_TOGGLE]
+    };
+  },
+
+  async setToggleState(key, state) {
+    if (![this.keys.COLLECTION_TOGGLE, this.keys.BUFFER_TOGGLE].includes(key)) {
+      throw new Error('Invalid toggle key');
+    }
+    await this.set({ [key]: state });
+  }
+};
 
 // Prompt Collector. Created by Nikolay Tretyakov May 2025
