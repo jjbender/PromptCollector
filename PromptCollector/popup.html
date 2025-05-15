@@ -7,102 +7,75 @@
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <div class="container">
-    
-      <div class="tabs-container">
-        <div class="tabs">
-          <button id="buffer-tab" class="tab-button icon-tab active"></button>
-          <button id="collections-tab" class="tab-button icon-tab "></button>
-          <div class="search-header">
-            <input type="text" id="search-input" placeholder="Search..." />
-          </div>
+  <main class="container">
+    <nav class="tabs-container" role="navigation" aria-label="Main navigation">
+      <div class="tabs" role="tablist">
+        <button id="buffer-tab" class="tab-button icon-tab active" role="tab" aria-selected="true" aria-controls="buffer-content"></button>
+        <button id="collections-tab" class="tab-button icon-tab" role="tab" aria-selected="false" aria-controls="collections-content"></button>
+        <div class="search-header">
+          <input type="text" id="search-input" placeholder="Search..." aria-label="Search prompts" />
         </div>
-        
       </div>
-    
+    </nav>
 
-    <div id="search-results" class="prompt-list">
-      <!-- Search results will be populated here -->
-      <div class="empty-message">Enter search terms above</div>
-    </div>
-
+    <section id="search-results" class="prompt-list" role="region" aria-live="polite">
+      <p class="empty-message">Enter search terms above</p>
+    </section>
     <!-- Buffer Tab Content -->
-    <div id="buffer-content" class="tab-content active">
-      <div class="section-header">
-        <h2> <span id="intro-message"></span></h2>
+    <section id="buffer-content" class="tab-content active" role="tabpanel" aria-labelledby="buffer-tab">
+      <header class="section-header">
+        <h2><span id="intro-message"></span></h2>
         <div class="button-row">
-        <button id="clipboard-to-active" class="toggle-button secondary tooltip" ><span class="tooltip-text">Save to active collection</span></button>
-        <button id="toggle-input" class="toggle-button" aria-label="Toggle input area">+</button>
-      </div>
-      </div>
-
-      <div id="prompt-input-container" class="input-area">
+          <button id="clipboard-to-active" class="toggle-button secondary tooltip" aria-label="Save to active collection">
+            <span class="tooltip-text">Save to active collection</span>
+          </button>
+          <button id="toggle-input" class="toggle-button" aria-label="Toggle input area" aria-expanded="false">+</button>
+        </div>
+      </header>
+      <div id="prompt-input-container" class="input-area" aria-hidden="true">
         <div class="button-row">
           <button id="paste-from-clipboard" class="action-button secondary">Paste from Clipboard</button>         
         </div>
-        <textarea id="prompt-input" placeholder="Enter or paste your prompt here..."></textarea>
+        <textarea id="prompt-input" placeholder="Enter or paste your prompt here..." aria-label="Prompt input area"></textarea>
         <div class="button-row">
           <button id="save-to-buffer" class="action-button">To Buffer</button>
           <button id="saveToCollection" class="action-button">To Collection</button>
-          
         </div>
       </div>
 
-      <div id="buffer-list" class="prompt-list">
-        <!-- Buffer items will be populated here -->
-        <div class="empty-message">No prompts saved yet</div>
+      <div id="buffer-list" class="prompt-list" role="list" aria-label="Saved prompts">
+        <p class="empty-message">No prompts saved yet</p>
       </div>
-    </div>
-
+    </section>
     <!-- Collections Tab Content -->
-    <div id="collections-content" class="tab-content">
-      
-
-      <div id="search-results" style="display: none;" class="prompt-list">
+    <section id="collections-content" class="tab-content" role="tabpanel" aria-labelledby="collections-tab">
+      <div id="collections-search-results" class="prompt-list" role="region" aria-live="polite" hidden>
         <!-- Search results will be populated here -->
-        <!--<div class="empty-message">Enter search terms above</div>-->
       </div>
-    
-      <div class="collections-header">
+         <header class="collections-header">
         <h2>My Collections</h2>
         <div class="button-row"> 
-          <button id="import-collection" class="toggle-button secondary tooltip"><span class="tooltip-text">Import collection</span></button>
-          <button id="create-collection" class="toggle-button">+</button>
+          <button id="import-collection" class="toggle-button secondary tooltip" aria-label="Import collection">
+            <span class="tooltip-text">Import collection</span>
+          </button>
+          <button id="create-collection" class="toggle-button" aria-label="Create new collection">+</button>
         </div>
-      </div>
+      </header>
 
-      <div id="collections-list">
-        <!-- Collections will be populated here -->
-        <div class="empty-message">No collections created yet</div>
+      <div id="collections-list" role="list" aria-label="Collections list">
+        <p class="empty-message">No collections created yet</p>
       </div>
-    </div>
-  </div>
-    <!-- Search Tab Content -->
-    <div id="search-content" class="tab-content">
-      <div class="search-header">
-        <input type="text" id="search-input" placeholder="Search prompts..." />
-        <!-- <select id="search-scope">
-          <option value="all">All Collections</option>
-          <option value="buffer">Buffer Only</option>
-        </select> -->
-      </div>
-
-      
-    </div>
-  </div>
-
+    </section>
+  </main>
   <!-- Footer -->
-  <footer class="app-footer">
+  <footer class="app-footer" role="contentinfo">
     <div class="footer-content">
       <p>PromptCollector &copy; 2025</p>
-      
-      <div class="footer-links">
+      <nav class="footer-links" aria-label="Footer navigation">
         <a href="#" id="help-link">Help</a>
         <a href="#" id="prompt-link">More prompts</a>
-       
-        <!-- <a href="#" id="privacy-link">Privacy</a> -->
-      </div>
-      <div id="theme-toggle-container" class="theme-toggle-container"></div>
+      </nav>
+      <div id="theme-toggle-container" class="theme-toggle-container" role="complementary"></div>
     </div>
   </footer>
   <script src="popup.js"></script>

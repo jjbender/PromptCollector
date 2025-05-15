@@ -1792,7 +1792,6 @@ function initializeDefaultsIfFirstTime() {
 
 // Storage Manager for safer operations
 const StorageManager = {
-  // Storage keys
   keys: {
     BUFFER: 'promptBuffer',
     COLLECTIONS: 'promptCollections',
