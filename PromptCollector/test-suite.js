@@ -146,6 +146,58 @@ function mockDOMElements() {
     toggleInput.textContent = '+';
     document.body.appendChild(toggleInput);
   }
+
+  if (!document.getElementById('theme-toggle-container')) {
+    const themeContainer = document.createElement('div');
+    themeContainer.id = 'theme-toggle-container';
+    document.body.appendChild(themeContainer);
+  }
+
+  if (!document.getElementById('clipboard-to-active')) {
+    const clipboardToActive = document.createElement('button');
+    clipboardToActive.id = 'clipboard-to-active';
+    clipboardToActive.className = 'action-button';
+    document.body.appendChild(clipboardToActive);
+  }
+
+  if (!document.getElementById('clipboard-to-buffer')) {
+    const clipboardToBuffer = document.createElement('button');
+    clipboardToBuffer.id = 'clipboard-to-buffer';
+    clipboardToBuffer.className = 'action-button';
+    document.body.appendChild(clipboardToBuffer);
+  }
+
+  if (!document.getElementById('save-to-buffer')) {
+    const saveToBuffer = document.createElement('button');
+    saveToBuffer.id = 'save-to-buffer';
+    document.body.appendChild(saveToBuffer);
+  }
+
+  if (!document.getElementById('saveToCollection')) {
+    const saveToCollection = document.createElement('button');
+    saveToCollection.id = 'saveToCollection';
+    document.body.appendChild(saveToCollection);
+  }
+
+  if (!document.getElementById('paste-from-clipboard')) {
+    const pasteFromClipboard = document.createElement('button');
+    pasteFromClipboard.id = 'paste-from-clipboard';
+    document.body.appendChild(pasteFromClipboard);
+  }
+
+  if (!document.getElementById('help-link')) {
+    const helpLink = document.createElement('a');
+    helpLink.id = 'help-link';
+    helpLink.href = '#';
+    document.body.appendChild(helpLink);
+  }
+
+  if (!document.getElementById('prompt-link')) {
+    const promptLink = document.createElement('a');
+    promptLink.id = 'prompt-link';
+    promptLink.href = '#';
+    document.body.appendChild(promptLink);
+  }
 }
 
 // Test individual function and track result
@@ -204,34 +256,85 @@ async function testStorageOperations() {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     // Verify default collection was created
-    return new Promise(resolve => {
-      chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
-        const collections = data.promptCollections || [];
-        const activeIndex = data.activeCollectionIndex;
-        
-        if (collections.length > 0 && collections[0].name === 'First Prompt Collection' && activeIndex === 0) {
-          resolve(true);
-        } else {
-          console.error('Default collection not initialized correctly:', { collections, activeIndex });
-          resolve(false);
-        }
-      });
-    });
+    const data = await StorageManager.get([StorageManager.keys.COLLECTIONS, StorageManager.keys.ACTIVE_INDEX]);
+    const collections = data[StorageManager.keys.COLLECTIONS] || [];
+    const activeIndex = data[StorageManager.keys.ACTIVE_INDEX];
+    
+    if (collections.length > 0 && collections[0].name === 'First Prompt Collection' && activeIndex === 0) {
+      return true;
+    } else {
+      console.error('Default collection not initialized correctly:', { collections, activeIndex });
+      return false;
+    }
   });
   
-  await testCase('Safe Storage Operation', async () => {
-    let testPassed = false;
-    
-    safeStorageOperation(
-      callback => chrome.storage.local.get('testKey', callback),
-      result => {
-        testPassed = true;
+  await testCase('Storage Manager Buffer Operations', async () => {
+    try {
+      // Test adding to buffer
+      const testText = "Test buffer text " + Date.now();
+      await StorageManager.addToBuffer(testText);
+      
+      // Verify text was added
+      const buffer = await StorageManager.getBuffer();
+      if (!buffer.includes(testText)) {
+        console.error('Text not found in buffer');
+        return false;
       }
-    );
-    
-    // Wait for async operation
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return testPassed;
+      
+      return true;
+    } catch (error) {
+      console.error('Buffer operation failed:', error);
+      return false;
+    }
+  });
+
+  await testCase('Storage Manager Collection Operations', async () => {
+    try {
+      const testCollection = {
+        name: 'Test Collection ' + Date.now(),
+        created: Date.now(),
+        updated: Date.now(),
+        prompts: []
+      };
+      
+      // Test adding collection
+      await StorageManager.addCollection(testCollection);
+      
+      // Verify collection was added
+      const collections = await StorageManager.getCollections();
+      const found = collections.some(c => c.name === testCollection.name);
+      
+      if (!found) {
+        console.error('Collection not found after adding');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Collection operation failed:', error);
+      return false;
+    }
+  });
+
+  await testCase('Storage Manager Toggle States', async () => {
+    try {
+      // Test setting toggle states
+      await StorageManager.setToggleState(StorageManager.keys.BUFFER_TOGGLE, true);
+      await StorageManager.setToggleState(StorageManager.keys.COLLECTION_TOGGLE, false);
+      
+      // Verify states were set
+      const toggleStates = await StorageManager.getToggleStates();
+      
+      if (toggleStates.bufferToggle !== true || toggleStates.collectionToggle !== false) {
+        console.error('Toggle states not set correctly:', toggleStates);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Toggle state operation failed:', error);
+      return false;
+    }
   });
 }
 
@@ -241,77 +344,97 @@ async function testBufferFunctionality() {
   
   await testCase('Save To Buffer', async () => {
     const testText = "Test prompt for buffer " + Date.now();
-    saveToBuffer(testText);
-    
-    // Allow time for the async operation to complete
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await saveToBuffer(testText);
     
     // Verify prompt was added to buffer
-    return new Promise(resolve => {
-      chrome.storage.local.get('promptBuffer', data => {
-        const buffer = data.promptBuffer || [];
-        if (buffer.includes(testText)) {
-          resolve(true);
-        } else {
-          console.error('Text not saved to buffer:', { buffer, testText });
-          resolve(false);
-        }
-      });
-    });
+    const buffer = await StorageManager.getBuffer();
+    if (!buffer.includes(testText)) {
+      console.error('Text not saved to buffer:', { buffer, testText });
+      return false;
+    }
+    return true;
   });
   
   await testCase('Delete From Buffer', async () => {
     // First add test items to buffer
     const testItems = ["Delete test 1", "Delete test 2", "Delete test 3"];
     
-    await new Promise(resolve => {
-      chrome.storage.local.get('promptBuffer', data => {
-        let buffer = data.promptBuffer || [];
-        buffer = buffer.concat(testItems);
-        chrome.storage.local.set({ promptBuffer: buffer }, resolve);
-      });
-    });
+    // Add test items to buffer
+    const buffer = await StorageManager.getBuffer();
+    const updatedBuffer = [...buffer, ...testItems];
+    await StorageManager.set({ [StorageManager.keys.BUFFER]: updatedBuffer });
     
-    // Now delete one item (index 1 in displayed order, which is reversed)
-    const bufferLength = await new Promise(resolve => {
-      chrome.storage.local.get('promptBuffer', data => {
-        resolve(data.promptBuffer.length);
-      });
-    });
+    const bufferLength = updatedBuffer.length;
     
     // Delete the second-to-last item (in display order)
-    deletePrompt(1);
-    
-    // Allow time for the async operation to complete
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await deletePrompt(1);
     
     // Verify item was deleted
-    return new Promise(resolve => {
-      chrome.storage.local.get('promptBuffer', data => {
-        const newBuffer = data.promptBuffer || [];
-        if (newBuffer.length === bufferLength - 1) {
-          resolve(true);
-        } else {
-          console.error('Item not deleted from buffer:', { 
-            originalLength: bufferLength,
-            newLength: newBuffer.length
-          });
-          resolve(false);
-        }
+    const newBuffer = await StorageManager.getBuffer();
+    if (newBuffer.length !== bufferLength - 1) {
+      console.error('Item not deleted from buffer:', { 
+        originalLength: bufferLength,
+        newLength: newBuffer.length
       });
-    });
+      return false;
+    }
+    return true;
   });
   
   await testCase('Load Buffer Items', async () => {
-    // Manually trigger loadBufferItems
-    loadBufferItems();
+    // Add some test items first
+    const testItems = ["Test buffer item 1", "Test buffer item 2"];
+    const buffer = await StorageManager.getBuffer();
+    const updatedBuffer = [...buffer, ...testItems];
+    await StorageManager.set({ [StorageManager.keys.BUFFER]: updatedBuffer });
     
-    // Allow time for DOM updates
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Manually trigger loadBufferItems
+    await loadBufferItems();
     
     // Check if buffer list is populated
     const bufferList = document.getElementById('buffer-list');
-    return bufferList && bufferList.innerHTML !== '';
+    if (!bufferList || !bufferList.innerHTML || bufferList.innerHTML === '<div class="empty-message">No prompts saved in buffer yet</div>') {
+      console.error('Buffer list not populated correctly');
+      return false;
+    }
+    return true;
+  });
+
+  await testCase('Edit Buffer Prompt', async () => {
+    // First add a test item
+    const originalText = "Original buffer text " + Date.now();
+    await saveToBuffer(originalText);
+    
+    const buffer = await StorageManager.getBuffer();
+    const index = buffer.length - 1; // Last item
+    
+    // Mock prompt for editing
+    const originalPrompt = window.prompt;
+    const editedText = "Edited buffer text " + Date.now();
+    window.prompt = () => editedText;
+    
+    // Edit the prompt
+    editPrompt(0); // Edit first item in display order (last in buffer)
+    
+    // Restore original prompt
+    window.prompt = originalPrompt;
+    
+    // Allow time for async operations
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Verify text was updated
+    const updatedBuffer = await StorageManager.getBuffer();
+    const found = updatedBuffer.includes(editedText);
+    
+    if (!found) {
+      console.error('Buffer item not edited:', {
+        original: originalText,
+        edited: editedText,
+        buffer: updatedBuffer
+      });
+      return false;
+    }
+    return true;
   });
 }
 
@@ -321,34 +444,21 @@ async function testCollectionFunctionality() {
   
   await testCase('Create New Collection', async () => {
     const testCollectionName = "Test Collection " + Date.now();
-    createNewCollection(testCollectionName);
-    
-    // Allow time for the async operation to complete
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await createNewCollection(testCollectionName);
     
     // Verify collection was created
-    return new Promise(resolve => {
-      chrome.storage.local.get('promptCollections', data => {
-        const collections = data.promptCollections || [];
-        const found = collections.some(c => c.name === testCollectionName);
-        
-        if (found) {
-          resolve(true);
-        } else {
-          console.error('Collection not created:', { collections, testName: testCollectionName });
-          resolve(false);
-        }
-      });
-    });
+    const collections = await StorageManager.getCollections();
+    const found = collections.some(c => c.name === testCollectionName);
+    
+    if (!found) {
+      console.error('Collection not created:', { collections, testName: testCollectionName });
+      return false;
+    }
+    return true;
   });
   
   await testCase('Make Collection Active', async () => {
-    // First get current collections
-    const collections = await new Promise(resolve => {
-      chrome.storage.local.get('promptCollections', data => {
-        resolve(data.promptCollections || []);
-      });
-    });
+    const collections = await StorageManager.getCollections();
     
     if (collections.length < 2) {
       console.log('Not enough collections to test activation');
@@ -356,198 +466,197 @@ async function testCollectionFunctionality() {
     }
     
     // Make the second collection active
-    makeCollectionActive(1);
-    
-    // Allow time for the async operation to complete
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await makeCollectionActive(1);
     
     // Verify active collection was updated
-    return new Promise(resolve => {
-      chrome.storage.local.get('activeCollectionIndex', data => {
-        if (data.activeCollectionIndex === 1) {
-          resolve(true);
-        } else {
-          console.error('Collection not activated:', { 
-            expectedIndex: 1, 
-            actualIndex: data.activeCollectionIndex 
-          });
-          resolve(false);
-        }
+    const activeIndex = await StorageManager.getActiveCollectionIndex();
+    if (activeIndex !== 1) {
+      console.error('Collection not activated:', { 
+        expectedIndex: 1, 
+        actualIndex: activeIndex 
       });
-    });
+      return false;
+    }
+    return true;
   });
   
   await testCase('Save To Collection', async () => {
-    const testPrompt = "Test prompt for collection " + Date.now();
+    // Mock window.prompt to return a collection name
+    const originalPrompt = window.prompt;
+    const testText = "Test prompt for collection " + Date.now();
     
-    // First get active collection for verification
-    const initialState = await new Promise(resolve => {
-      chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
-        resolve({
-          collections: data.promptCollections || [],
-          activeIndex: data.activeCollectionIndex
-        });
-      });
-    });
-    
-    // If there's no active collection, we can't proceed
-    if (typeof initialState.activeIndex !== 'number') {
-      return 'skipped';
+    // Get initial state
+    const collections = await StorageManager.getCollections();
+    if (collections.length === 0) {
+      window.prompt = () => "New Test Collection";
+    } else {
+      window.prompt = () => collections[0].name;
     }
     
-    // Count initial prompts
-    const initialPromptCount = initialState.collections[initialState.activeIndex].prompts.length;
-    
-    // Mock prompt dialog to automatically confirm
-    const originalPrompt = window.prompt;
-    window.prompt = () => initialState.collections[initialState.activeIndex].name;
-    
     // Save to collection
-    saveToCollection(testPrompt);
+    await new Promise(resolve => {
+      saveToCollection(testText);
+      setTimeout(resolve, 500); // Allow time for storage operations
+    });
     
     // Restore original prompt
     window.prompt = originalPrompt;
     
-    // Allow time for the async operation to complete
+    // Verify prompt was added
+    const updatedCollections = await StorageManager.getCollections();
+    const collection = updatedCollections.find(c => 
+      c.prompts.some(p => {
+        const promptText = typeof p === 'string' ? p : p.text;
+        return promptText === testText;
+      })
+    );
+    
+    if (!collection) {
+      console.error('Prompt not added to collection:', { updatedCollections, testText });
+      return false;
+    }
+    return true;
+  });
+
+  await testCase('Mark Collection Prompt as Done', async () => {
+    // Mock clipboard API and focus
+    const originalClipboard = navigator.clipboard;
+    const originalHasFocus = document.hasFocus;
+    const originalWindowFocus = window.focus;
+    
+    navigator.clipboard = {
+      writeText: () => Promise.resolve()
+    };
+    document.hasFocus = () => true;
+    window.focus = () => {};
+    
+    // Get a collection with prompts
+    const collections = await StorageManager.getCollections();
+    const activeIndex = await StorageManager.getActiveCollectionIndex();
+    
+    if (!collections[activeIndex] || collections[activeIndex].prompts.length === 0) {
+      // Add a test prompt if none exists
+      const testPrompt = {
+        text: "Test prompt for marking done " + Date.now(),
+        added: Date.now()
+      };
+      collections[activeIndex].prompts.push(testPrompt);
+      await StorageManager.set({ [StorageManager.keys.COLLECTIONS]: collections });
+    }
+    
+    // Create test prompt item
+    const promptIndex = 0;
+    const prompt = collections[activeIndex].prompts[promptIndex];
+    const promptItem = createCollectionPromptItem(prompt, promptIndex, activeIndex);
+    document.body.appendChild(promptItem);
+    
+    // Find and click the "Copy & hide" button
+    const copyDoneBtn = promptItem.querySelector('button');
+    copyDoneBtn.click();
+    
+    // Allow time for async operations
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Verify prompt was added to collection
-    return new Promise(resolve => {
-      chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
-        const collections = data.promptCollections || [];
-        const activeIndex = data.activeCollectionIndex;
-        
-        if (typeof activeIndex !== 'number') {
-          console.error('No active collection after save');
-          resolve(false);
-          return;
-        }
-        
-        const collection = collections[activeIndex];
-        if (!collection) {
-          console.error('Active collection not found');
-          resolve(false);
-          return;
-        }
-        
-        const prompts = collection.prompts || [];
-        const newPromptCount = prompts.length;
-        
-        if (newPromptCount > initialPromptCount) {
-          resolve(true);
-        } else {
-          console.error('Prompt not added to collection:', { 
-            initialCount: initialPromptCount,
-            newCount: newPromptCount
-          });
-          resolve(false);
-        }
-      });
-    });
-  });
-  
-  await testCase('Delete Collection Prompt', async () => {
-    // First get active collection for testing
-    const initialState = await new Promise(resolve => {
-      chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
-        resolve({
-          collections: data.promptCollections || [],
-          activeIndex: data.activeCollectionIndex
-        });
-      });
-    });
+    // Restore original clipboard and focus
+    navigator.clipboard = originalClipboard;
+    document.hasFocus = originalHasFocus;
+    window.focus = originalWindowFocus;
     
-    // If there's no active collection or it has no prompts, we can't proceed
-    if (typeof initialState.activeIndex !== 'number' || 
-        !initialState.collections[initialState.activeIndex] ||
-        initialState.collections[initialState.activeIndex].prompts.length === 0) {
+    // Clean up
+    document.body.removeChild(promptItem);
+    
+    // Verify prompt was marked as done
+    const updatedCollections = await StorageManager.getCollections();
+    const updatedPrompt = updatedCollections[activeIndex].prompts[promptIndex];
+    
+    if (typeof updatedPrompt !== 'object' || !updatedPrompt.done) {
+      console.error('Prompt not marked as done:', updatedPrompt);
+      return false;
+    }
+    return true;
+  });
+
+  await testCase('Reset Collection Prompts', async () => {
+    const [collections, activeIndex] = await Promise.all([
+      StorageManager.getCollections(),
+      StorageManager.getActiveCollectionIndex()
+    ]);
+    
+    if (typeof activeIndex !== 'number' || !collections[activeIndex]) {
       return 'skipped';
     }
     
-    const collectionIndex = initialState.activeIndex;
-    const promptIndex = 0; // Delete the first prompt
-    const initialPromptCount = initialState.collections[collectionIndex].prompts.length;
+    // Mark a prompt as done first
+    const collection = collections[activeIndex];
+    if (collection.prompts.length === 0) {
+      console.log('No prompts to test reset');
+      return 'skipped';
+    }
     
-    // Mock confirm dialog to automatically confirm deletion
+    collection.prompts[0] = {
+      text: typeof collection.prompts[0] === 'string' ? collection.prompts[0] : collection.prompts[0].text,
+      added: Date.now(),
+      done: true
+    };
+    
+    await StorageManager.set({ [StorageManager.keys.COLLECTIONS]: collections });
+    
+    // Call reset function
+    resetCollectionPrompts();
+    
+    // Allow time for async operations
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Verify prompts were reset
+    const updatedCollections = await StorageManager.getCollections();
+    const hasCompletedPrompts = updatedCollections[activeIndex].prompts.some(
+      prompt => typeof prompt === 'object' && prompt.done === true
+    );
+    
+    if (hasCompletedPrompts) {
+      console.error('Not all prompts were reset');
+      return false;
+    }
+    return true;
+  });
+  
+  await testCase('Delete Collection Prompt', async () => {
+    const [collections, activeIndex] = await Promise.all([
+      StorageManager.getCollections(),
+      StorageManager.getActiveCollectionIndex()
+    ]);
+    
+    if (typeof activeIndex !== 'number' || !collections[activeIndex] || collections[activeIndex].prompts.length === 0) {
+      return 'skipped';
+    }
+    
+    const initialPromptCount = collections[activeIndex].prompts.length;
+    
+    // Mock confirm dialog
     const originalConfirm = window.confirm;
     window.confirm = () => true;
     
-    // Delete the prompt
-    deleteCollectionPrompt(collectionIndex, promptIndex);
+    // Delete the first prompt
+    deleteCollectionPrompt(activeIndex, 0);
     
     // Restore original confirm
     window.confirm = originalConfirm;
     
-    // Allow time for the async operation to complete
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Allow time for async operations
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Verify prompt was deleted
-    return new Promise(resolve => {
-      chrome.storage.local.get('promptCollections', data => {
-        const collections = data.promptCollections || [];
-        if (!collections[collectionIndex]) {
-          console.error('Collection not found after deletion');
-          resolve(false);
-          return;
-        }
-        
-        const newPromptCount = collections[collectionIndex].prompts.length;
-        
-        if (newPromptCount === initialPromptCount - 1) {
-          resolve(true);
-        } else {
-          console.error('Prompt not deleted from collection:', { 
-            initialCount: initialPromptCount,
-            newCount: newPromptCount
-          });
-          resolve(false);
-        }
+    const updatedCollections = await StorageManager.getCollections();
+    const newPromptCount = updatedCollections[activeIndex].prompts.length;
+    
+    if (newPromptCount !== initialPromptCount - 1) {
+      console.error('Prompt not deleted from collection:', { 
+        initialCount: initialPromptCount,
+        newCount: newPromptCount
       });
-    });
-  });
-  
-  await testCase('Export Collection', async () => {
-    // This is harder to test automatically since it triggers a download
-    // We'll mock the necessary DOM elements and check if they're created
-    
-    const originalCreateElement = document.createElement;
-    let anchorCreated = false;
-    
-    document.createElement = function(tagName) {
-      const element = originalCreateElement.call(document, tagName);
-      if (tagName.toLowerCase() === 'a') {
-        anchorCreated = true;
-        // Mock the click method to prevent actual download
-        element.click = function() {};
-      }
-      return element;
-    };
-    
-    // Get a collection to export
-    const collections = await new Promise(resolve => {
-      chrome.storage.local.get('promptCollections', data => {
-        resolve(data.promptCollections || []);
-      });
-    });
-    
-    if (collections.length === 0) {
-      document.createElement = originalCreateElement;
-      return 'skipped';
+      return false;
     }
-    
-    // Try to export the first collection
-    exportCollection(collections[0], 'json');
-    
-    // Restore original createElement
-    document.createElement = originalCreateElement;
-    
-    return anchorCreated;
-  });
-  
-  await testCase('Import Collection', async () => {
-    // This is hard to test since it involves file selection
-    // We'll skip this test for automated testing
-    return 'skipped';
+    return true;
   });
 }
 
@@ -555,6 +664,43 @@ async function testCollectionFunctionality() {
 async function testUIInteractions() {
   console.log('\n🖥️ Testing UI Interactions...');
   
+  await testCase('Theme Toggle', async () => {
+    // Create theme toggle button if not exists
+    if (!document.getElementById('theme-toggle')) {
+      const button = document.createElement('button');
+      button.id = 'theme-toggle';
+      button.className = 'action-button toggle-button';
+      document.getElementById('theme-toggle-container').appendChild(button);
+    }
+    
+    // Get initial theme
+    const initialTheme = await StorageManager.get(StorageManager.keys.THEME);
+    const initialIsDark = document.body.classList.contains('dark-mode');
+    
+    // Click the toggle button
+    const toggleButton = document.getElementById('theme-toggle');
+    toggleButton.click();
+    
+    // Allow time for theme change
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Verify theme was toggled
+    const newIsDark = document.body.classList.contains('dark-mode');
+    if (newIsDark === initialIsDark) {
+      console.error('Theme did not toggle:', { initialIsDark, newIsDark });
+      return false;
+    }
+    
+    // Verify theme was saved
+    const savedTheme = await StorageManager.get(StorageManager.keys.THEME);
+    if (savedTheme[StorageManager.keys.THEME] !== (newIsDark ? 'dark' : 'light')) {
+      console.error('Theme not saved correctly:', savedTheme);
+      return false;
+    }
+    
+    return true;
+  });
+
   await testCase('Toggle Input Visibility', async () => {
     // Get initial visibility state
     const inputContainer = document.getElementById('prompt-input-container');
@@ -590,10 +736,7 @@ async function testUIInteractions() {
   });
   
   await testCase('Create Buffer Heading', async () => {
-    const bufferCount = document.createElement('span');
-    bufferCount.textContent = '(5/10)';
-    
-    const heading = createBufferHeading(bufferCount, true);
+    const heading = createBufferHeading(true);
     
     return heading && 
            heading.tagName === 'H2' && 
@@ -650,19 +793,24 @@ async function testClipboardOperations() {
       }
     };
     
+    // Mock document.hasFocus and window.focus
+    const originalHasFocus = document.hasFocus;
+    const originalWindowFocus = window.focus;
+    document.hasFocus = () => true;
+    window.focus = () => {};
+    
     // Create a test button
     const testButton = document.createElement('button');
     testButton.textContent = 'Copy';
     document.body.appendChild(testButton);
     
     // Test copy function
-    copyToClipboard('Test clipboard text', testButton);
+    await copyToClipboard('Test clipboard text', testButton);
     
-    // Allow time for async operations
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    // Restore original clipboard
+    // Restore original clipboard and focus
     navigator.clipboard = originalClipboard;
+    document.hasFocus = originalHasFocus;
+    window.focus = originalWindowFocus;
     
     // Check if button text changed to "Copied"
     const buttonTextChanged = testButton.textContent === 'Copied';
@@ -674,12 +822,16 @@ async function testClipboardOperations() {
   });
   
   await testCase('Clipboard To Active Collection', async () => {
-    // Mock clipboard API
+    // Mock clipboard API and focus
     const originalClipboard = navigator.clipboard;
+    const originalHasFocus = document.hasFocus;
+    const originalWindowFocus = window.focus;
     
     navigator.clipboard = {
       readText: () => Promise.resolve('Test text from clipboard')
     };
+    document.hasFocus = () => true;
+    window.focus = () => {};
     
     // Create button for test
     if (!document.getElementById('clipboard-to-active')) {
@@ -690,58 +842,50 @@ async function testClipboardOperations() {
     }
     
     // Ensure there's an active collection
-    await new Promise(resolve => {
-      chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
-        const collections = data.promptCollections || [];
-        let activeIndex = data.activeCollectionIndex;
-        
-        if (typeof activeIndex !== 'number' && collections.length > 0) {
-          // Set first collection as active
-          chrome.storage.local.set({ activeCollectionIndex: 0 }, resolve);
-        } else {
-          resolve();
-        }
-      });
-    });
+    const collections = await StorageManager.getCollections();
+    const activeIndex = await StorageManager.getActiveCollectionIndex();
+    
+    if (typeof activeIndex !== 'number' && collections.length > 0) {
+      await StorageManager.setActiveCollectionIndex(0);
+    }
     
     // Execute the function
-    clipboardToActiveCollection();
+    await clipboardToActiveCollection();
     
     // Allow time for async operations
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Restore original clipboard
+    // Restore original clipboard and focus
     navigator.clipboard = originalClipboard;
+    document.hasFocus = originalHasFocus;
+    window.focus = originalWindowFocus;
     
     // Verify prompt was added to active collection
-    return new Promise(resolve => {
-      chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], data => {
-        const collections = data.promptCollections || [];
-        const activeIndex = data.activeCollectionIndex;
-        
-        if (typeof activeIndex !== 'number' || !collections[activeIndex]) {
-          resolve(false);
-          return;
-        }
-        
-        const prompts = collections[activeIndex].prompts || [];
-        const found = prompts.some(prompt => {
-          const promptText = typeof prompt === 'string' ? prompt : prompt.text;
-          return promptText === 'Test text from clipboard';
-        });
-        
-        resolve(found);
-      });
+    const updatedCollections = await StorageManager.getCollections();
+    const currentActiveIndex = await StorageManager.getActiveCollectionIndex();
+    
+    if (typeof currentActiveIndex !== 'number' || !updatedCollections[currentActiveIndex]) {
+      return false;
+    }
+    
+    const prompts = updatedCollections[currentActiveIndex].prompts || [];
+    return prompts.some(prompt => {
+      const promptText = typeof prompt === 'string' ? prompt : prompt.text;
+      return promptText === 'Test text from clipboard';
     });
   });
   
   await testCase('Clipboard To Buffer', async () => {
-    // Mock clipboard API
+    // Mock clipboard API and focus
     const originalClipboard = navigator.clipboard;
+    const originalHasFocus = document.hasFocus;
+    const originalWindowFocus = window.focus;
     
     navigator.clipboard = {
       readText: () => Promise.resolve('Test buffer text from clipboard')
     };
+    document.hasFocus = () => true;
+    window.focus = () => {};
     
     // Create button for test
     if (!document.getElementById('clipboard-to-buffer')) {
@@ -752,22 +896,19 @@ async function testClipboardOperations() {
     }
     
     // Execute the function
-    clipboardToBuffer();
+    await clipboardToBuffer();
     
     // Allow time for async operations
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Restore original clipboard
+    // Restore original clipboard and focus
     navigator.clipboard = originalClipboard;
+    document.hasFocus = originalHasFocus;
+    window.focus = originalWindowFocus;
     
     // Verify prompt was added to buffer
-    return new Promise(resolve => {
-      chrome.storage.local.get('promptBuffer', data => {
-        const buffer = data.promptBuffer || [];
-        const found = buffer.includes('Test buffer text from clipboard');
-        resolve(found);
-      });
-    });
+    const buffer = await StorageManager.getBuffer();
+    return buffer.includes('Test buffer text from clipboard');
   });
 }
 

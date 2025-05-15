@@ -1313,6 +1313,33 @@ const makeCollectionActive = async (index) => {
 };
 // Import collection from JSON file
 const importCollection = () => {
+  // First check if the extension is fully initialized
+  const checkInitialization = () => {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.get(['promptCollections', 'activeCollectionIndex'], async (data) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error('Storage error: ' + chrome.runtime.lastError.message));
+          return;
+        }
+
+        // If storage is not initialized, initialize it
+        if (!data.promptCollections) {
+          try {
+            await new Promise(resolve => {
+              initializeDefaultsIfFirstTime();
+              // Wait for initialization to complete
+              setTimeout(resolve, 500);
+            });
+          } catch (error) {
+            reject(new Error('Failed to initialize storage: ' + error.message));
+            return;
+          }
+        }
+        resolve();
+      });
+    });
+  };
+
   // Create a hidden file input element
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
@@ -1320,11 +1347,8 @@ const importCollection = () => {
   fileInput.style.display = 'none';
   document.body.appendChild(fileInput);
 
-  // Trigger the file selection dialog
-  fileInput.click();
-
   // Handle file selection
-  fileInput.addEventListener('change', function () {
+  fileInput.addEventListener('change', async function () {
     if (fileInput.files.length === 0) {
       document.body.removeChild(fileInput);
       return;
@@ -1339,115 +1363,130 @@ const importCollection = () => {
       return;
     }
 
-    const reader = new FileReader();
+    try {
+      // Ensure initialization before proceeding
+      await checkInitialization();
 
-    reader.onload = function (event) {
-      try {
-        const collection = JSON.parse(event.target.result);
+      const reader = new FileReader();
 
-        // Validate the collection structure
-        if (!validateCollectionStructure(collection)) {
-          throw new Error('Invalid collection format');
-        }
+      reader.onload = async function (event) {
+        try {
+          const collection = JSON.parse(event.target.result);
 
-        // Add timestamps if they don't exist
-        const now = Date.now();
-        collection.created = collection.created || now;
-        collection.updated = collection.updated || now;
-
-        // Validate and sanitize prompts
-        collection.prompts = collection.prompts.map(prompt => {
-          if (typeof prompt === 'string') {
-            return {
-              text: prompt.trim(),
-              added: now,
-              done: false
-            };
-          } else if (typeof prompt === 'object' && prompt !== null) {
-            return {
-              text: (prompt.text || '').trim(),
-              added: prompt.added || now,
-              done: !!prompt.done // Convert to boolean
-            };
-          }
-          throw new Error('Invalid prompt format');
-        });
-
-        // Save the imported collection
-        chrome.storage.local.get('promptCollections', function (data) {
-          if (chrome.runtime.lastError) {
-            throw new Error('Storage error: ' + chrome.runtime.lastError.message);
+          // Validate the collection structure
+          if (!validateCollectionStructure(collection)) {
+            throw new Error('Invalid collection format');
           }
 
-          try {
-            let collections = data.promptCollections || [];
+          // Add timestamps if they don't exist
+          const now = Date.now();
+          collection.created = collection.created || now;
+          collection.updated = collection.updated || now;
 
-            // Check if a collection with the same name already exists
-            const existingCollectionIndex = collections.findIndex(
-              (c) => c.name === collection.name
+          // Validate and sanitize prompts
+          collection.prompts = collection.prompts.map(prompt => {
+            if (typeof prompt === 'string') {
+              return {
+                text: prompt.trim(),
+                added: now,
+                done: false
+              };
+            } else if (typeof prompt === 'object' && prompt !== null) {
+              return {
+                text: (prompt.text || '').trim(),
+                added: prompt.added || now,
+                done: !!prompt.done // Convert to boolean
+              };
+            }
+            throw new Error('Invalid prompt format');
+          });
+
+          // Get current collections with retry mechanism
+          const getCollections = async (retries = 3) => {
+            try {
+              const data = await StorageManager.get(StorageManager.keys.COLLECTIONS);
+              return data[StorageManager.keys.COLLECTIONS] || [];
+            } catch (error) {
+              if (retries > 0) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return getCollections(retries - 1);
+              }
+              throw error;
+            }
+          };
+
+          const collections = await getCollections();
+
+          // Check if a collection with the same name already exists
+          const existingCollectionIndex = collections.findIndex(
+            (c) => c.name === collection.name
+          );
+
+          if (existingCollectionIndex !== -1) {
+            const overwrite = confirm(
+              `A collection named "${collection.name}" already exists. Do you want to overwrite the collection or import with a different name?\n` +
+              '- OK to overwrite\n' +
+              '- Cancel to import as new collection'
             );
 
-            if (existingCollectionIndex !== -1) {
-              const overwrite = confirm(
-                `A collection named "${collection.name}" already exists. Do you want to overwrite the collection or import wit a different name?\n` +
-                '- Overwrite(deletes existing collection)\n' +
-                '- Import as new collection'
-              );
-
-              if (overwrite) {
-                collections[existingCollectionIndex] = collection;
-              } else {
-                // Ask for a new name
-                let newName = collection.name;
-                let counter = 1;
-                while (collections.some(c => c.name === newName)) {
-                  newName = `${collection.name} (${counter})`;
-                  counter++;
-                }
-                collection.name = newName;
-                collections.push(collection);
-              }
+            if (overwrite) {
+              collections[existingCollectionIndex] = collection;
             } else {
+              // Ask for a new name
+              let newName = collection.name;
+              let counter = 1;
+              while (collections.some(c => c.name === newName)) {
+                newName = `${collection.name} (${counter})`;
+                counter++;
+              }
+              collection.name = newName;
               collections.push(collection);
             }
+          } else {
+            collections.push(collection);
+          }
 
-            chrome.storage.local.set({ promptCollections: collections }, function () {
-              if (chrome.runtime.lastError) {
-                throw new Error('Storage error: ' + chrome.runtime.lastError.message);
-              }
+          // Save with retry mechanism
+          const saveCollections = async (retries = 3) => {
+            try {
+              await StorageManager.set({ [StorageManager.keys.COLLECTIONS]: collections });
               alert(
                 `Collection "${collection.name}" imported successfully with ${collection.prompts.length} prompts.`
               );
               loadCollections();
-              document.body.removeChild(fileInput);
-            });
-          } catch (error) {
-            console.error('Error saving imported collection:', error);
-            alert('Error saving collection: ' + error.message);
-            document.body.removeChild(fileInput);
-          }
-        });
-      } catch (error) {
-        console.error('Error importing collection:', error);
-        alert('Error importing collection: ' + error.message);
-        document.body.removeChild(fileInput);
-      }
-    };
+              loadBufferItems();
+            } catch (error) {
+              if (retries > 0) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return saveCollections(retries - 1);
+              }
+              throw error;
+            }
+          };
 
-    reader.onerror = function (error) {
-      console.error('File reading error:', error);
-      alert('Error reading the file. Please try again.');
-      document.body.removeChild(fileInput);
-    };
+          await saveCollections();
+        } catch (error) {
+          console.error('Error importing collection:', error);
+          alert('Error importing collection: ' + error.message);
+        }
+      };
 
-    try {
+      reader.onerror = function (error) {
+        console.error('File reading error:', error);
+        alert('Error reading the file. Please try again.');
+      };
+
       reader.readAsText(file);
     } catch (error) {
-      console.error('Error initializing file reading:', error);
-      alert('Error reading file. Please try again.');
+      console.error('Error during import:', error);
+      alert('Error during import: ' + error.message);
+    } finally {
       document.body.removeChild(fileInput);
     }
   });
+
+  // Trigger the file selection dialog
+  fileInput.click();
 };
 
 // Validate collection structure
